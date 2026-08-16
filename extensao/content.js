@@ -17,7 +17,7 @@
     const PAGE_ROUTES = [
         {
             key: 'planejamento',
-            match: (url) => url.includes('PlanejamentoProfessorPlanejamentoAulaEdicao.aspx'),
+            match: (url) => /PlanejamentoProfessor[^a-zA-Z0-9]*[Tt]o?[Jj]ulaEdicao\.aspx/i.test(url) || /PlanejamentoProfessor(?:[/.-_]|Aula)?Edicao\.aspx/i.test(url) || /PlanejamentoProfessor.*AulaEdicao\.aspx/i.test(url),
             requiredGlobals: [
                 'SIAPMatcher', 'SIAPConfig', 'SIAPState', 'SIAPStorage', 'SIAPLogger',
                 'SIAPUtils', 'SIAPContext', 'SIAPApi', 'SIAPHabilidades', 'SIAPConteudos',
@@ -34,7 +34,7 @@
         },
         {
             key: 'planejamento_turma',
-            match: (url) => url.includes('PlanejamentoProfessorTurmaEdicao.aspx') || url.includes('AcompanhamentoPlanejamentoProfessorListagem.aspx'),
+            match: (url) => /PlanejamentoProfessor(?:Turma|Professor)?Edicao\.aspx/i.test(url) || url.includes('AcompanhamentoPlanejamentoProfessorListagem.aspx'),
             requiredGlobals: [],
             init() {
                 if (typeof window.SIAPSalvarAbrirProxima?.init === 'function') {
@@ -1336,8 +1336,15 @@
         await bridgeRequest('ping', {}, 5000);
     }
 
+    function sanitizeSourceName(rawName) {
+        const base = String(rawName || '').split('?')[0].split('#')[0];
+        const lastPart = base.split('/').pop() || 'modulo';
+        const safe = lastPart.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+        return safe || 'modulo.js';
+    }
+
     async function injectScriptCode(jsText, sourceName) {
-        const wrappedSource = `${String(jsText || '')}\n//# sourceURL=${sourceName}`;
+        const wrappedSource = `${String(jsText || '')}\n//# sourceURL=${sanitizeSourceName(sourceName)}`;
         await ensureMainBridgeReady();
         await bridgeRequest('executeCode', {
             code: wrappedSource,
@@ -1403,6 +1410,9 @@
             }
 
             const url = chrome.runtime.getURL(path);
+            if (!/^https:\/\//i.test(url)) {
+                throw new Error(`Recurso local inválido (${path}). Reinstale a extensão para garantir os arquivos corretos.`);
+            }
             const response = await fetch(url, { cache: 'no-store' });
 
             if (!response.ok) {
@@ -1419,7 +1429,7 @@
             await injectScriptCode(trimmed, url);
         }
 
-        console.log(`[Planeja PRO] Módulo ${pageKey} carregado localmente pela extensão (${paths.length} arquivo(s)).`);
+        console.log(`[SiapAI] Módulo ${pageKey} carregado localmente pela extensão (${paths.length} arquivo(s)).`);
         return true;
     }
 
@@ -1467,12 +1477,43 @@
             pei: 'PEI aberto'
         };
         const fields = [];
+        function findAssociatedLabel(element, rawLabel) {
+            if (rawLabel && !/^ct\d+[A-Z]*[-$]/i.test(rawLabel)) return rawLabel;
+            const labelElements = element.closest?.('table, tr, td, div')?.querySelectorAll?.('label');
+            if (labelElements?.length) {
+                for (const labelEl of labelElements) {
+                    const text = String(labelEl.textContent || '').trim();
+                    if (text && text.length < 80 && !/^ct\d+[A-Z]*[-$]/i.test(text)) return text;
+                }
+            }
+            const forId = element.id ? document.getElementById(element.id)?.previousElementSibling : null;
+            if (forId && forId.tagName === 'LABEL') {
+                const text = String(forId.textContent || '').trim();
+                if (text && text.length < 80) return text;
+            }
+            if (rawLabel && /\w/.test(rawLabel)) return rawLabel.replace(/^ct\d+[A-Z]*[-$]/i, '');
+            return null;
+        }
+
         document.querySelectorAll('input[readonly], input:not([type]), select').forEach((element) => {
             const value = String(element.value || '').trim();
             if (!value || value.length > 120) return;
-            const name = String(element.getAttribute('aria-label') || element.name || element.id || '')
-                .replace(/^.*_/, '').replace(/([A-Z])/g, ' $1').trim();
+            const rawLabel = String(element.getAttribute('aria-label') || element.name || element.id || '');
+            const label = findAssociatedLabel(element, rawLabel);
+            if (label) {
+            const name = String(label)
+                .replace(/^(ct\d+[A-Z]*-|MainContent_|ctl\d+_)/i, '')
+                .replace(/\$(ct\d+[A-Z]*-|MainContent_|ctl\d+_)/i, '$')
+                .split(/\$|_/)
+                .filter((part) => !/^ct\d+[A-Z]*$/i.test(part))
+                .map((part) => part.replace(/^ph/, '').trim())
+                .filter(Boolean)
+                .join(' · ')
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/\s+/g, ' ')
+                .trim();
             if (name) fields.push(`${name}: ${value}`);
+            }
         });
         return {
             page: page?.key || 'siap',

@@ -40,17 +40,27 @@
     {
       "resources": [
         "main_bridge.js",
-        "pei/pei-api.js"
+        "pei/pei-api.js",
+        "pei/pei-ui.js",
+        "pei/pei.js",
+        "planejamento/*.js",
+        "conteudo/*.js",
+        "frequencia/*.js",
+        "content.js",
+        "background.js",
+        "sidepanel.js",
+        "popup.js"
       ],
       "matches": [
-        "https://siap.educacao.go.gov.br/*"
+        "https://siap.educacao.go.gov.br/*",
+        "https://siapai.online/*"
       ]
     }
   ],
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "version": "5.7.1",
+  "version": "5.8.0",
   "background": {
     "service_worker": "background.js"
   }
