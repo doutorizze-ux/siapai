@@ -40,7 +40,11 @@ No Coolify: **Settings → Security → GitHub → New GitHub App** (ou use o bo
 | `LLM_API_KEY` | Chave de API de IA externa (ver seção abaixo) | Somente para IA |
 | `LLM_API_BASE` | Base da API (ex.: `https://generativelanguage.googleapis.com/v1beta/openai` para Gemini) | Somente para IA |
 
-> **Nota sobre a geração de IA:** o servidor foi atualizado para aceitar chaves de IA externas (qualquer API compatível com OpenAI: Google Gemini, OpenRouter, Groq, OpenAI). Se `LLM_API_KEY` não estiver configurada, login, licença, extensão, checkout e webhook continuam funcionando normalmente; apenas o botão "Gerar" da IA retornará erro.
+> **Nota sobre a geração de IA:** o servidor foi atualizado para aceitar chaves de IA externas (qualquer API compatível com OpenAI: Google Gemini, OpenRouter, Groq, OpenAI). Se `LLM_API_KEY` não estiver configurada, login, licença, extensão, checkout e webhook continuam funcionando normalmente; apenas o botão "Gerar" da IA retornará erro como `OPENAI_API_KEY is not configured`.
+
+### Erro conhecido e correção
+
+Se a extensão mostrar erro ao gerar planejamento em produção, a causa mais comum é a ausência de `LLM_API_KEY`/`LLM_API_BASE` no Coolify. Siga a seção "Como ativar a IA com chave gratuita" abaixo e clique em **Redeploy**.
 
 ### Como ativar a IA com chave gratuita (Google Gemini)
 

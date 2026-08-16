@@ -20,8 +20,50 @@ function useAdminAccess() {
   return { ready, user, loading, isAuthenticated };
 }
 
+function LocalAdminForm({ onLoggedIn }: { onLoggedIn: () => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const login = trpc.auth.localLogin.useMutation();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (login.isPending) return;
+    try {
+      await login.mutateAsync({ email, password });
+      onLoggedIn();
+    } catch (err) {
+      login.reset();
+      setError((err as Error).message || "Não foi possível entrar.");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-3 text-left">
+      <div className="space-y-1.5">
+        <Label htmlFor="admin-email">E-mail do administrador</Label>
+        <Input id="admin-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@siapai.online" required autoComplete="username" />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="admin-password">Senha</Label>
+        <Input id="admin-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
+      </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button type="submit" className="w-full" disabled={login.isPending}>
+        {login.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+        Entrar
+      </Button>
+    </form>
+  );
+}
+
 export default function Admin() {
   const { ready, user, loading, isAuthenticated } = useAdminAccess();
+  const utils = trpc.useUtils();
+
+  const handleLocalLoggedIn = () => {
+    utils.auth.me.invalidate();
+  };
 
   if (loading) {
     return (
@@ -38,7 +80,13 @@ export default function Admin() {
         <p className="text-sm text-muted-foreground max-w-sm">
           Esta área é exclusiva do administrador. Faça login com a conta de admin para gerenciar licenças e o preço do plano.
         </p>
-        <Button onClick={() => startLogin()}>Fazer login</Button>
+        <LocalAdminForm onLoggedIn={handleLocalLoggedIn} />
+        <div className="flex items-center gap-3 text-xs text-muted-foreground w-full max-w-sm">
+          <span className="flex-1 h-px bg-border" />
+          ou
+          <span className="flex-1 h-px bg-border" />
+        </div>
+        <Button variant="outline" onClick={() => startLogin()}>Fazer login com conta Manus</Button>
         <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
           Voltar ao início
         </Link>

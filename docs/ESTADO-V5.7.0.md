@@ -11,6 +11,12 @@
 - Manifest: web_accessible_resources (main_bridge.js, pei/pei-api.js), versão 5.7.0, side_panel default_path sidepanel.html.
 - Testes passando: `tests/extension-sidepanel.test.mjs` (contrato v5.7.0, sem injeção no SIAP) e `tests/main-bridge-headless.test.mjs` (simulação headless dos 4 motores).
 
+## Bug 16/08 "Failed to fetch" (v5.7.1)
+- CAUSA RAIZ CONFIRMADA: geração /api/ai/generate.php em produção retorna 401/erro `OPENAI_API_KEY is not configured` — o Coolify NÃO tem LLM_API_KEY/LLM_API_BASE definidos. /api/auth/validate-email e /api/ping-extensao OK.
+- Correção na extensão (background.js): erros AbortError e network agora viram mensagens legíveis em pt-BR (v5.7.1).
+- v5.7.1: manifest/sidepanel rodapé 5.7.1, testes OK, ZIP em /home/ubuntu/siapai-extension-v5.7.1.zip (42 arquivos).
+- PENDENTE: (1) usuário cria chave Gemini grátis em https://aistudio.google.com/apikey e adiciona no Coolify: LLM_API_KEY=AIza... + LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta/openai, depois Redeploy; (2) push da v5.7.1 ao GitHub; (3) entregar ZIP v5.7.1 ao usuário com teste de 1 aula; (4) webhook Asaas ainda não cadastrado pelo usuário (https://siapai.online/api/webhook/asaas, evento PAYMENT_RECEIVED).
+
 ## Pendências antes da entrega
 1. Empacotar `/home/ubuntu/siapai-extension-v5.7.0.zip` (zip -qr da pasta extensao).
 2. Push para GitHub (doutorizze-ux/siapai, branch main) — usuário faz Redeploy no Coolify se desejado.
