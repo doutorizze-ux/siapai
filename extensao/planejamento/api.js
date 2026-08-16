@@ -1681,6 +1681,21 @@ ${customContentFormatLine}      "metodologia": "texto completo",
         aula.conteudos = conteudosCorrigidos;
       }
 
+      // Garantia final: toda aula precisa de ao menos 1 conteúdo clicável da
+      // árvore do SIAP (mesmo padrão usado para habilidades e Matriz SAEB).
+      // Sem isso, a árvore "Objetivos de Conhecimentos/ Conteúdos" fica vazia
+      // na aula aplicada quando a IA retorna array vazio e o catálogo não
+      // resolveu um conteúdo exato para esta aula.
+      if (!Array.isArray(aula.conteudos) || !aula.conteudos.length) {
+        if (todosConteudosValidos.length) {
+          aula.conteudos = [todosConteudosValidos[aulaIndex % todosConteudosValidos.length]];
+          window.SIAPLogger?.log?.(`[API] Conteúdo padrão da árvore atribuído: ${aula.conteudos[0]}`);
+        } else if (conteudosExatos.length) {
+          aula.conteudos = [conteudosExatos[aulaIndex % conteudosExatos.length]];
+          window.SIAPLogger?.log?.(`[API] Conteúdo do catálogo atribuído como fallback: ${aula.conteudos[0]}`);
+        }
+      }
+
       const matriz = context.matrizSaeb || {};
       if (isMatrizSaebContextDisponivel(context)) {
         const matrizValidos = [...(matriz.folhas || [])].filter(Boolean);
