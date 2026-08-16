@@ -1,51 +1,14 @@
 *{box-sizing:border-box}
-body{margin:0;width:380px;font-family:Arial,Helvetica,sans-serif;background:#f4faf6;color:#1a2532}
-.popup{padding:8px}
-.topo{text-align:center;padding:14px 10px 12px;background:linear-gradient(135deg,#065f46,#059669 60%,#10b981);border-radius:0 0 20px 20px;margin:0 4px;color:#fff}
-.logo-badge{width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:24px;font-weight:800;color:#fff}
-.brand{font-size:22px;font-weight:800;margin:0;letter-spacing:.3px;color:#fff}
-.brand-accent{font-size:16px;margin-left:4px}
-.subtitulo{margin:6px 0 0;color:rgba(255,255,255,.9);font-size:12.5px}
-.card{margin-top:12px;border:1px solid #d7ece3;background:#ffffff;border-radius:16px;padding:11px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(6,95,70,.05)}
-.icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e1f5ea;font-size:20px;flex-shrink:0}
-.info{flex:1;min-width:0}
-.info strong{display:block;color:#065f46;font-size:16px;margin-bottom:3px}
-.info span{display:block;color:#697386;font-size:11px}
-.info b{display:block;color:#047857;font-size:17px;margin-top:2px}
-.badge{font-weight:700;border-radius:999px;padding:6px 9px;background:#dcf5e8;color:#059669;font-size:11px;white-space:nowrap}
-.badge.expirado{background:#ffe4e4;color:#b42318}
-.badge.aviso{background:#fff3d7;color:#975a16}
-.status-card.expirado{background:#fff7f7;border-color:#ffc9c9}
-.status-card.aviso{background:#fffaf0;border-color:#ffe2a9}
-.botao{margin-top:4px;text-decoration:none;border-radius:16px;padding:14px;display:flex;gap:12px;align-items:center;transition:.15s transform,.15s box-shadow}
-.botao:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,.10)}
-.botaoIcon{font-size:28px;width:42px;text-align:center}
-.botao strong{display:block;font-size:16px;color:#065f46}
-.botao small{display:block;font-size:13px;line-height:1.25;margin-top:3px}
-.seta{margin-left:auto;font-size:34px;line-height:1}
-.tutorial{background:#0d8f43;color:white}
-.tutorial small{color:#daf7e4}
-.tutorial strong{color:#fff}
-.tutorialCompacto{padding:10px 12px;border-radius:13px;margin-top:10px}
-.tutorialCompacto .botaoIcon{font-size:20px;width:28px}
-.tutorialCompacto strong{font-size:14px}
-.tutorialCompacto small{font-size:11px}
-.tutorialCompacto .seta{font-size:26px}
-.indicacaoBox{margin-top:14px;border-radius:16px;padding:14px;background:white;border:1px solid #d5eadc;color:#065f46}
-.destaqueIndicacao{margin-top:16px;padding:16px;border:2px solid #0d8f43;background:linear-gradient(180deg,#f0fff6,#ffffff);box-shadow:0 10px 24px rgba(13,143,67,.14)}
-.indicacaoHeader{display:flex;gap:12px;align-items:center}
-.indicacaoHeader strong{display:block;font-size:19px}
-.indicacaoHeader small{display:block;font-size:13px;line-height:1.3;margin-top:4px;color:#047857;font-weight:700}
-.indicacaoLinkWrap{margin-top:12px;display:flex;gap:8px}
-.indicacaoLinkWrap input{flex:1;min-width:0;border:1px solid #cfe5d8;border-radius:10px;padding:10px;font-size:12px;color:#243042;background:#f8fffb}
-.indicacaoLinkWrap button{border:0;border-radius:10px;background:#0d8f43;color:white;font-weight:700;padding:0 12px;cursor:pointer}
-.indicacaoLinkWrap button.copiado{background:#065f46}
-.indicacaoAjuda{display:block;margin-top:8px;color:#697386;font-size:12px}
-.indicacaoAjuda.erro{color:#b42318}
-.suporte{background:white;border:1px solid #d5eadc;color:#065f46}
-.suporte small{color:#697386}
-footer{margin-top:16px;padding-top:14px;border-top:1px solid #e2e8e4;color:#3b4654}
-footer span{display:block;font-weight:700;font-size:13px}
-footer small{display:block;margin-top:4px;color:#697386}
-.versao{color:#9aa7a0}
-.oculto{display:none!important}
+body{margin:0;width:372px;font-family:Arial,Helvetica,sans-serif;background:#f6faf8;color:#112a24}
+.popup{padding:12px}
+.topo{display:flex;align-items:center;gap:12px;padding:17px;background:linear-gradient(135deg,#075c45,#078a63);border-radius:18px;color:#fff;box-shadow:0 10px 26px rgba(5,93,69,.18)}
+.logo-badge{width:42px;height:42px;display:grid;place-items:center;flex:0 0 42px;border-radius:13px;background:rgba(255,255,255,.17);border:1px solid rgba(255,255,255,.37);font-weight:800;font-size:24px}
+h1{margin:0;font-size:21px;letter-spacing:.2px}.topo p{margin:4px 0 0;font-size:12px;color:rgba(255,255,255,.88)}
+.notice{margin-top:12px;padding:12px 13px;border:1px solid #d7ebe3;border-radius:14px;background:#fff;color:#36584e}.notice strong{display:block;color:#087153;font-size:13px;margin-bottom:4px}.notice span{display:block;font-size:12px;line-height:1.4}
+.license-card{margin-top:12px;min-height:82px;display:flex;gap:11px;align-items:center;padding:13px;border:1px solid #d4e9df;border-radius:16px;background:#fff;box-shadow:0 3px 12px rgba(7,80,57,.05)}
+.license-card.expirado{border-color:#f2c7c7;background:#fff8f8}.license-card.aviso{border-color:#f6dfad;background:#fffaf1}
+.license-icon{width:37px;height:37px;display:grid;place-items:center;flex:0 0 37px;border-radius:50%;background:#dff4e9;color:#057150;font-size:20px;font-weight:800}.expirado .license-icon{background:#ffe5e5;color:#b42318}.aviso .license-icon{background:#fff0cc;color:#9a6700}
+.license-info{min-width:0;flex:1}.license-info strong{display:block;color:#12362d;font-size:15px;margin-bottom:3px}.license-info span{display:block;color:#667b75;font-size:11.5px;line-height:1.25}.license-info b{display:block;margin-top:4px;color:#087153;font-size:14px}
+.badge{padding:5px 8px;border-radius:999px;background:#ddf4e8;color:#087153;font-weight:700;font-size:10px;white-space:nowrap}.badge.expirado{background:#ffe2e2;color:#b42318}.badge.aviso{background:#fff0cd;color:#9a6700}
+.refresh{width:100%;margin-top:12px;padding:11px;border:0;border-radius:12px;background:#087c59;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:transform .15s ease,background .15s ease}.refresh:hover{background:#056447}.refresh:active{transform:scale(.98)}.refresh:focus-visible{outline:3px solid rgba(8,124,89,.3);outline-offset:2px}
+footer{margin:14px 2px 2px;padding-top:12px;border-top:1px solid #e2ece7;color:#4c625b}footer span{display:block;font-size:12px;font-weight:700}footer small{display:block;margin-top:3px;font-size:10.5px;color:#7a8d86}.versao{color:#9aa8a2}

@@ -3,8 +3,6 @@
 
     const API_BASE = 'https://siapai.online/api';
     const APP_BASE = API_BASE.replace(/\/api\/?$/, '');
-    const AFFILIATE_CODE_ENDPOINT = 'https://siapai.online/wp-json/planejapro/v1/affiliate-code';
-    const REFERRAL_BASE = 'https://siapai.online/';
     const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
     const CACHE_PREFIX = 'siap_saas_cache__';
     const LICENSE_REFRESH_MS = 5 * 60 * 1000;
@@ -593,7 +591,7 @@
             .top .info {
                 position: relative !important;
                 min-height: 97px;
-                padding-right: 620px !important;
+                padding-right: 420px !important;
                 box-sizing: border-box;
             }
             #siap-license-panel,
@@ -616,6 +614,24 @@
                 justify-content: flex-end;
                 max-width: 650px;
             }
+            #siap-license-status {
+                display: none;
+                align-items: center;
+                gap: 8px;
+                min-height: 46px;
+                padding: 8px 11px;
+                border: 1px solid rgba(27, 112, 54, 0.18);
+                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.98);
+                color: #176c2c;
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+            }
+            #siap-license-status.show { display: flex; }
+            #siap-license-status strong { display: block; font-size: 12px; }
+            #siap-license-status small { display: block; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: #49655a; }
+            #siap-license-status .siap-license-dot { width: 8px; height: 8px; border-radius: 50%; background: #2f9a4b; box-shadow: 0 0 0 3px rgba(47,154,75,.12); }
+            #siap-license-status.status-warning .siap-license-dot { background: #cc8400; }
+            #siap-license-status.status-expired .siap-license-dot { background: #c13737; }
             #siap-referral-card {
                 display: none;
                 appearance: none;
@@ -1024,239 +1040,14 @@
         return date.toLocaleDateString('pt-BR');
     }
 
-    function firstReferralValue(...values) {
-        for (const value of values) {
-            if (value !== undefined && value !== null && String(value).trim() !== '') {
-                return String(value).trim();
-            }
-        }
-        return '';
-    }
-
-    function normalizeReferralCode(value) {
-        const raw = String(value || '').trim();
-        if (!raw) return '';
-
-        try {
-            const url = new URL(raw);
-            return (url.searchParams.get('ref') || raw).trim();
-        } catch {
-            const match = raw.match(/[?&]ref=([^&]+)/i);
-            return match ? decodeURIComponent(match[1]).trim() : raw;
-        }
-    }
-
-    function extractReferralCode(payload, auth) {
-        const data = payload?.data || {};
-        const user = payload?.user || data?.user || auth?.user || {};
-        const license = payload?.license || data?.license || auth?.license || {};
-        const affiliate = user.affiliate || user.afiliado || data?.affiliate || data?.afiliado ||
-            auth?.affiliate || auth?.afiliado || payload?.affiliate || payload?.afiliado || {};
-
-        return normalizeReferralCode(firstReferralValue(
-            payload?.referral_code,
-            payload?.referralCode,
-            payload?.codigo,
-            payload?.code,
-            data?.referral_code,
-            data?.referralCode,
-            data?.codigo,
-            data?.code,
-            user.referral_code,
-            user.referralCode,
-            user.affiliate_code,
-            user.affiliateCode,
-            user.codigo_afiliado,
-            user.codigoAfiliado,
-            user.codigo_indicacao,
-            affiliate.referral_code,
-            affiliate.code,
-            affiliate.codigo,
-            affiliate.ref,
-            license.referral_code,
-            license.affiliate_code,
-            auth?.referral_code,
-            auth?.referralCode,
-            auth?.affiliate_code,
-            auth?.codigo_afiliado
-        ));
-    }
-
-    function buildReferralLink(code) {
-        const cleanCode = normalizeReferralCode(code);
-        return cleanCode ? `${REFERRAL_BASE}?ref=${encodeURIComponent(cleanCode)}` : '';
-    }
-
-    async function requestAffiliateEndpoint(url, auth, method = 'GET', body = null) {
-        const headers = auth?.token ? { Authorization: `Bearer ${auth.token}` } : {};
-        const options = { method, headers };
-
-        if (method !== 'GET') {
-            headers['Content-Type'] = 'application/json';
-            options.body = JSON.stringify(body || {});
-        }
-
-        const response = await fetch(url, options);
-        const text = await response.text();
-        let parsed = {};
-
-        try {
-            parsed = JSON.parse(text || '{}');
-        } catch {}
-
-        if (!response.ok) {
-            throw new Error(parsed?.message || parsed?.error || `HTTP ${response.status}`);
-        }
-
-        return parsed;
-    }
-
-    async function fetchReferralCode(auth) {
-        const direct = extractReferralCode(null, auth);
-        if (direct) return direct;
-
-        const email = firstReferralValue(auth?.email, auth?.user?.email, auth?.license?.email);
-        const userId = firstReferralValue(auth?.user?.id, auth?.user_id, auth?.license?.user_id);
-        const licenseKey = firstReferralValue(auth?.license_key, auth?.license?.license_key, auth?.license?.key, auth?.key);
-        const queryUrl = `${AFFILIATE_CODE_ENDPOINT}?email=${encodeURIComponent(email)}&user_id=${encodeURIComponent(userId)}&license=${encodeURIComponent(licenseKey)}`;
-
-        for (const url of [queryUrl, AFFILIATE_CODE_ENDPOINT]) {
-            try {
-                const payload = await requestAffiliateEndpoint(url, auth);
-                const code = extractReferralCode(payload, auth);
-                if (code) return code;
-            } catch {}
-        }
-
-        try {
-            const payload = await requestAffiliateEndpoint(
-                AFFILIATE_CODE_ENDPOINT,
-                auth,
-                'POST',
-                { email, user_id: userId, license: licenseKey }
-            );
-            return extractReferralCode(payload, auth);
-        } catch {
-            return '';
-        }
-    }
-
-    function closeReferralModal() {
-        const overlay = document.getElementById('siap-referral-overlay');
-        if (overlay) {
-            overlay.classList.remove('show');
-            overlay.setAttribute('aria-hidden', 'true');
-        }
-    }
-
-    function ensureReferralModal() {
-        let overlay = document.getElementById('siap-referral-overlay');
-        if (overlay) return overlay;
-
-        overlay = document.createElement('div');
-        overlay.id = 'siap-referral-overlay';
-        overlay.setAttribute('aria-hidden', 'true');
-        overlay.innerHTML = `
-            <div id="siap-referral-dialog" role="dialog" aria-modal="true" aria-labelledby="siap-referral-dialog-title">
-                <div id="siap-referral-dialog-header">
-                    <h2 id="siap-referral-dialog-title"><span aria-hidden="true">🎁</span> Indique e Ganhe</h2>
-                    <button type="button" id="siap-referral-close" aria-label="Fechar">×</button>
-                </div>
-                <div id="siap-referral-dialog-body">
-                    <p>Compartilhe seu link de indicação e ganhe <strong>2 meses grátis por cada pessoa que comprar com seu link!</strong>.</p>
-                    <div id="siap-referral-link-row">
-                        <input type="text" id="siap-referral-link" readonly aria-label="Seu link de indicação">
-                        <button type="button" id="siap-referral-copy">Copiar</button>
-                    </div>
-                    <div id="siap-referral-feedback" aria-live="polite"></div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        overlay.querySelector('#siap-referral-close')?.addEventListener('click', closeReferralModal);
-        overlay.addEventListener('click', (event) => {
-            if (event.target === overlay) closeReferralModal();
-        });
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && overlay.classList.contains('show')) {
-                closeReferralModal();
-            }
-        });
-        overlay.querySelector('#siap-referral-copy')?.addEventListener('click', async () => {
-            const input = overlay.querySelector('#siap-referral-link');
-            const button = overlay.querySelector('#siap-referral-copy');
-            const feedback = overlay.querySelector('#siap-referral-feedback');
-            const link = String(input?.value || '').trim();
-            if (!link || button?.disabled) return;
-
-            try {
-                await navigator.clipboard.writeText(link);
-            } catch {
-                input.focus();
-                input.select();
-                document.execCommand('copy');
-            }
-
-            button.textContent = 'Copiado!';
-            feedback.classList.remove('error');
-            feedback.textContent = 'Link copiado. Agora é só compartilhar.';
-            setTimeout(() => {
-                button.textContent = 'Copiar';
-            }, 1800);
-        });
-
-        return overlay;
-    }
-
-    async function openReferralModal() {
-        const overlay = ensureReferralModal();
-        const input = overlay.querySelector('#siap-referral-link');
-        const copyBtn = overlay.querySelector('#siap-referral-copy');
-        const feedback = overlay.querySelector('#siap-referral-feedback');
-
-        overlay.classList.add('show');
-        overlay.setAttribute('aria-hidden', 'false');
-        input.value = '';
-        copyBtn.disabled = true;
-        copyBtn.textContent = 'Copiar';
-        feedback.classList.remove('error');
-        feedback.textContent = 'Carregando seu link...';
-
-        try {
-            const auth = await getAuth();
-            if (!auth?.email) {
-                throw new Error('Faça login na extensão para acessar seu link de indicação.');
-            }
-
-            const code = await fetchReferralCode(auth);
-            const link = buildReferralLink(code);
-            if (!link) {
-                throw new Error('Seu código de indicação ainda não foi localizado.');
-            }
-
-            input.value = link;
-            copyBtn.disabled = false;
-            feedback.textContent = 'Seu link está pronto para copiar e compartilhar.';
-            setTimeout(() => input.focus(), 30);
-        } catch (err) {
-            feedback.classList.add('error');
-            feedback.textContent = err?.message || 'Não foi possível carregar o link de indicação.';
-        }
-    }
-
     function renderLicenseBadge(payload) {
-        const referralCard = document.getElementById('siap-referral-card');
-        const planInfo = document.getElementById('siap-referral-plan');
-        const renewBtn = document.getElementById('siap-header-btn-renovar');
-        if (!referralCard || !planInfo || !renewBtn) return;
+        const statusCard = document.getElementById('siap-license-status');
+        const title = document.getElementById('siap-license-title');
+        const detail = document.getElementById('siap-license-detail');
+        if (!statusCard || !title || !detail) return;
 
         if (!payload || !payload.license) {
-            referralCard.classList.remove('status-active', 'status-warning', 'status-expired');
-            planInfo.textContent = '';
-            planInfo.removeAttribute('title');
-            renewBtn.classList.remove('show');
-            renewBtn.dataset.url = '';
+            statusCard.classList.remove('show', 'status-active', 'status-warning', 'status-expired');
             return;
         }
 
@@ -1265,135 +1056,65 @@
         const daysRemaining = Number(payload.days_remaining ?? 9999);
         const expired = payload.expired === true || daysRemaining < 0;
         const warning = !expired && daysRemaining <= warningDays;
-        const cssClass = expired ? 'status-expired' : (warning ? 'status-warning' : 'status-active');
-        const planName = firstReferralValue(
-            license.plan,
-            license.plan_name,
-            license.nome_plano,
-            payload.plan,
-            'Premium'
-        );
+        const planName = String(license.plan || license.plan_name || license.nome_plano || payload.plan || 'SiapAI');
         const validity = payload.expires_at_br || formatDateBR(license.expires_at);
-        const planLine = `Plano ${planName} - Validade: ${validity}`;
 
-        referralCard.classList.remove('status-active', 'status-warning', 'status-expired');
-        referralCard.classList.add(cssClass);
-        planInfo.textContent = planLine;
-        planInfo.title = planLine;
-
-        const renewalUrl = payload.renewal_url || `${APP_BASE}/public/license-renewal-direct.php?email=${encodeURIComponent(payload.user?.email || '')}`;
-        renewBtn.dataset.url = renewalUrl;
-        renewBtn.classList.toggle('show', !!payload.renewal_available);
-        renewBtn.title = payload.renewal_available ? 'Renovar plano' : 'Renovação indisponível no momento';
+        statusCard.classList.remove('status-active', 'status-warning', 'status-expired');
+        statusCard.classList.add('show', expired ? 'status-expired' : (warning ? 'status-warning' : 'status-active'));
+        title.textContent = expired ? 'Licença vencida' : (warning ? 'Licença próxima do vencimento' : 'Licença ativa');
+        detail.textContent = `${planName} · validade ${validity}`;
     }
 
     async function renderHeaderAuthButtons() {
         injectTopBarStyles();
         const topInfo = await waitForTopInfo();
         if (!topInfo) return;
-
         let panel = document.getElementById('siap-license-panel');
         if (panel) return;
 
         panel = document.createElement('div');
         panel.id = 'siap-license-panel';
         panel.innerHTML = `
-            <button type="button" id="siap-referral-card" title="Abrir seu link de indicação">
-                <span class="referral-visual" aria-hidden="true">
-                    <span class="referral-status-dot"></span>
-                    <span class="referral-gift">
-                        <span class="gift-lid"><span class="gift-bow"></span></span>
-                        <span class="gift-box"></span>
-                    </span>
+            <div id="siap-license-status" aria-live="polite">
+                <span class="siap-license-dot" aria-hidden="true"></span>
+                <span>
+                    <strong id="siap-license-title">Licença ativa</strong>
+                    <small id="siap-license-detail"></small>
                 </span>
-                <span class="referral-text">
-                    <span class="referral-main">Indique e Ganhe</span>
-                    <span class="referral-sub">2 meses grátis</span>
-                    <span class="referral-plan" id="siap-referral-plan"></span>
-                </span>
-            </button>
-            <button type="button" class="siap-header-auth-btn renovar" id="siap-header-btn-renovar">RENOVAR</button>
+            </div>
             <button type="button" class="siap-header-auth-btn entrar" id="siap-header-btn-entrar">ENTRAR</button>
             <button type="button" class="siap-header-auth-btn sair" id="siap-header-btn-sair">SAIR</button>
         `;
-
         topInfo.appendChild(panel);
         updateHeaderAuthButtonsState(false);
 
         const btnEntrar = panel.querySelector('#siap-header-btn-entrar');
         const btnSair = panel.querySelector('#siap-header-btn-sair');
-        const btnRenovar = panel.querySelector('#siap-header-btn-renovar');
-        const referralCard = panel.querySelector('#siap-referral-card');
-
-        referralCard.addEventListener('click', () => {
-            openReferralModal().catch((err) => {
-                console.warn('[SIAP SaaS] erro ao abrir indicação:', err);
-            });
-        });
-
         btnEntrar.addEventListener('click', async () => {
             btnEntrar.disabled = true;
-            try {
-                await menuActionEntrar();
-            } finally {
-                btnEntrar.disabled = false;
-            }
+            try { await menuActionEntrar(); } finally { btnEntrar.disabled = false; }
         });
-
         btnSair.addEventListener('click', async () => {
             if (btnSair.disabled) return;
             btnSair.disabled = true;
-            try {
-                await menuActionSair();
-            } finally {
-                btnSair.disabled = false;
-            }
-        });
-
-        btnRenovar.addEventListener('click', () => {
-            const url = btnRenovar.dataset.url || '';
-            if (!url) {
-                alert('A renovação ainda não está disponível para esta licença.');
-                return;
-            }
-            window.open(url, '_blank', 'noopener,noreferrer');
+            try { await menuActionSair(); } finally { btnSair.disabled = false; }
         });
     }
 
     function updateHeaderAuthButtonsState(isLoggedIn) {
         const btnEntrar = document.getElementById('siap-header-btn-entrar');
         const btnSair = document.getElementById('siap-header-btn-sair');
-        const planInfo = document.getElementById('siap-referral-plan');
-        const renewBtn = document.getElementById('siap-header-btn-renovar');
-        const referralCard = document.getElementById('siap-referral-card');
-
+        const statusCard = document.getElementById('siap-license-status');
         if (btnEntrar) {
             btnEntrar.style.display = isLoggedIn ? 'none' : 'inline-flex';
             btnEntrar.disabled = false;
         }
-
         if (btnSair) {
             btnSair.style.display = isLoggedIn ? 'inline-flex' : 'none';
             btnSair.disabled = false;
         }
-
-        if (referralCard) {
-            referralCard.classList.toggle('show', isLoggedIn);
-        }
-
-        if (!isLoggedIn) {
-            closeReferralModal();
-            if (referralCard) {
-                referralCard.classList.remove('status-active', 'status-warning', 'status-expired');
-            }
-            if (planInfo) {
-                planInfo.textContent = '';
-                planInfo.removeAttribute('title');
-            }
-            if (renewBtn) {
-                renewBtn.classList.remove('show');
-                renewBtn.dataset.url = '';
-            }
+        if (!isLoggedIn && statusCard) {
+            statusCard.classList.remove('show', 'status-active', 'status-warning', 'status-expired');
         }
     }
 
