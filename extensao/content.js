@@ -1410,8 +1410,8 @@
             }
 
             const url = chrome.runtime.getURL(path);
-            if (!/^https:\/\//i.test(url)) {
-                throw new Error(`Recurso local inválido (${path}). Reinstale a extensão para garantir os arquivos corretos.`);
+            if (!/^chrome-extension:\/\//i.test(url) || /\/invalid(\/|$)/i.test(url)) {
+                throw new Error(`Recurso local inválido (${path}). Remova a extensão antiga e carregue a pasta oficial da v5.8.1 em chrome://extensions.`);
             }
             const response = await fetch(url, { cache: 'no-store' });
 
