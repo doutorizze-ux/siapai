@@ -37,10 +37,26 @@ No Coolify: **Settings → Security → GitHub → New GitHub App** (ou use o bo
 | `PORT` | `3000` | Sim |
 | `ASAAS_API_URL` | `https://sandbox.asaas.com/api/v3` (mude para produção depois) | Recomendada |
 | `ASAAS_API_KEY` | Token do Asaas (sandbox por enquanto) | Recomendada |
-| `BUILT_IN_FORGE_API_KEY` | Chave da API do Manus para a IA (ver nota abaixo) | Somente para IA |
-| `BUILT_IN_FORGE_API_URL` | URL da API do Manus para a IA | Somente para IA |
+| `LLM_API_KEY` | Chave de API de IA externa (ver seção abaixo) | Somente para IA |
+| `LLM_API_BASE` | Base da API (ex.: `https://generativelanguage.googleapis.com/v1beta/openai` para Gemini) | Somente para IA |
 
-> **Nota sobre a geração de IA:** o módulo de planejamento usa a API de IA do Manus (`BUILT_IN_FORGE_API_KEY`/`BUILT_IN_FORGE_API_URL`). Se essas variáveis não forem configuradas, login, licença e painel continuam funcionando normalmente; apenas o botão "Gerar" da IA falhará. Se você tiver uma chave do Google Gemini, me avise que eu configuro o servidor para usá-la diretamente.
+> **Nota sobre a geração de IA:** o servidor foi atualizado para aceitar chaves de IA externas (qualquer API compatível com OpenAI: Google Gemini, OpenRouter, Groq, OpenAI). Se `LLM_API_KEY` não estiver configurada, login, licença, extensão, checkout e webhook continuam funcionando normalmente; apenas o botão "Gerar" da IA retornará erro.
+
+### Como ativar a IA com chave gratuita (Google Gemini)
+
+1. Acesse https://aistudio.google.com/apikey e faça login com sua conta Google.
+2. Clique em **Create API Key**, aceite os termos e copie a chave gerada (começa com `AIza...`).
+3. No plano gratuito, o Gemini permite 15 requisições por minuto e 1.500 por dia — suficiente para uso pessoal do SiapAI.
+4. No Coolify, abra o serviço do app → aba **Environment Variables** e adicione:
+
+```
+LLM_API_KEY=AIza...  (sua chave copiada)
+LLM_API_BASE=https://generativelanguage.googleapis.com/v1beta/openai
+```
+
+5. Clique em **Redeploy**.
+
+Alternativa gratuita: a [OpenRouter](https://openrouter.ai/keys) oferece modelos gratuitos (ex.: `google/gemini-flash-1.5-free`, `openai/gpt-4o-mini`) — use `LLM_API_KEY=<chave_openrouter>` e `LLM_API_BASE=https://openrouter.ai/api/v1`.
 
 ### 4. Inicializar o banco
 

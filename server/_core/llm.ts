@@ -212,16 +212,34 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+const resolveApiUrl = () => {
+  const externalKey =
+    process.env.OPENAI_API_KEY || process.env.LLM_API_KEY || "";
+  const externalBase = process.env.LLM_API_BASE || "";
+  if (externalKey && !ENV.forgeApiKey) {
+    return externalBase
+      ? `${externalBase.replace(/\/$/, "")}/chat/completions`
+      : "https://api.openai.com/v1/chat/completions";
+  }
+  if (ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0) {
+    return `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`;
+  }
+  return "https://forge.manus.im/v1/chat/completions";
+};
 
 const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
+  if (ENV.forgeApiKey) return;
+  if (process.env.OPENAI_API_KEY || process.env.LLM_API_KEY) return;
+  throw new Error(
+    "OPENAI_API_KEY is not configured. Configure LLM_API_KEY (OpenAI/Gemini/OpenRouter compatible) no servidor para habilitar a geração por IA."
+  );
 };
+
+const resolveApiKey = () =>
+  ENV.forgeApiKey ||
+  process.env.OPENAI_API_KEY ||
+  process.env.LLM_API_KEY ||
+  "";
 
 const normalizeResponseFormat = ({
   responseFormat,
@@ -405,7 +423,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
+      authorization: `Bearer ${resolveApiKey()}`,
     },
     body: JSON.stringify(payload),
   });

@@ -51,7 +51,7 @@ export default function Admin() {
       <header className="border-b bg-background/85 backdrop-blur sticky top-0 z-40">
         <div className="container flex h-14 items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-extrabold text-primary">
-            <img src="/manus-storage/siapai-logo-transparent_04b775c0_69749d88.webp" alt="" className="h-7 w-7 rounded-lg" />
+            <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663876770025/prWiYtCFZbRhSEqO.webp" alt="" className="h-7 w-7 rounded-lg" />
             SiapAI · Admin
           </Link>
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
