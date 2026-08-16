@@ -1,0 +1,50 @@
+window.SIAPConfig = {
+  API_URL: 'https://api.openai.com/v1/chat/completions',
+  MODEL: 'gpt-4.1-mini',
+  CLICK_DELAY_MS: 1500,
+  AFTER_SAVE_DELAY_MS: 5000,
+  WAIT_TIMEOUT_MS: 15000,
+  AUTO_RESUME_DELAY_MS: 3500,
+  DEBUG: true,
+  STORAGE_KEYS: {
+    API_KEY: 'tm_gpt_api_key',
+    GENERATED_PLANS: 'tm_gpt_generatedPlans',
+    CURRENT_PLAN_INDEX: 'tm_gpt_currentPlanIndex',
+    UPLOADED_TEXT: 'tm_gpt_uploadedText',
+    PASTED_TEXT: 'tm_gpt_pastedText',
+    QTD: 'tm_gpt_qtd',
+    AUTO_MODE: 'tm_gpt_auto_mode',
+    RUNNING: 'tm_gpt_running',
+    GENERATED_PLANS_CONTEXT: 'tm_gpt_generatedPlansContext',
+    ENABLE_CUSTOM_CONTENT: 'tm_gpt_enable_custom_content',
+    REPLICATE_TO_OTHER_CLASS: 'tm_gpt_replicate_to_other_class',
+    REVISA_ENABLED: 'tm_gpt_revisa_enabled',
+    REVISA_SELECTION: 'tm_gpt_revisa_selection_v1',
+    PLAN_LIBRARY: 'tm_gpt_plan_library',
+    SAVE_STRATEGY: 'tm_gpt_save_strategy'
+  },
+  SELECTORS: {
+    TREE: '#cphFuncionalidade_cphCampos_treeView',
+    CONTEUDO_ROOT: '#cphFuncionalidade_cphCampos_treeView',
+    HABILIDADES_GRID: '#cphFuncionalidade_cphCampos_gdvExpectativas',
+    CONTEUDOS_BOX: '#cphFuncionalidade_cphCampos_upLstConteudos',
+    CONTEUDOS_BOX_CANDIDATES: [
+      '#cphFuncionalidade_cphCampos_upLstConteudos',
+      '#cphFuncionalidade_cphCampos_pnlConteudosSelecionados',
+      '#cphFuncionalidade_cphCampos_pnlConteudos'
+    ],
+    CUSTOM_CONTENT_TEXTAREA: '#cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_0, textarea[id*="lstConteudos_txtDescricaoConteudo"]',
+    METODOLOGIA: '#cphFuncionalidade_cphCampos_txtMetodologia',
+    AVALIACAO: '#cphFuncionalidade_cphCampos_txtAvaliacao',
+    SAVE_NEXT: '#cphFuncionalidade_cphCampos_btnSalvarProximo, #siap_btn_salvar_abrir_proxima',
+    SAVE_NEXT_LEGACY: '#cphFuncionalidade_cphCampos_btnSalvarProximo',
+    SAVE_NEXT_CUSTOM: '#siap_btn_salvar_abrir_proxima',
+    REPLICATE_BUTTON: '#cphFuncionalidade_cphCampos_btnReplicar',
+    LESSON_NUMBER: '#cphFuncionalidade_cphCampos_txtNumeroAula',
+    DISCIPLINA: '#cphFuncionalidade_cphCampos_txtDisciplina',
+    TURMA: '#cphFuncionalidade_cphCampos_txtTurma',
+    SERIE: '#cphFuncionalidade_cphCampos_txtSerie, #txtSerie, input[id$="txtSerie"]',
+    EIXO: '#ddlEixo, select[id$="ddlEixo"], select[name$="$ddlEixo"]',
+    BIMESTRE: '#cphFuncionalidade_cphCampos_ddlBimestre, #ddlBimestre, select[id$="ddlBimestre"], select[name$="$ddlBimestre"]'
+  }
+};

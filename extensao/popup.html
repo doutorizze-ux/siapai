@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SiapAI</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="popup">
+    <header class="topo">
+      <div class="logo-badge" aria-hidden="true">S</div>
+      <h1 class="brand">SiapAI<span class="brand-accent">✨</span></h1>
+      <p class="subtitulo">Automatize. Planeje. Ensine.</p>
+    </header>
+
+    <section class="indicacaoBox destaqueIndicacao" id="indicacaoBox">
+      <div class="indicacaoHeader">
+        <span class="botaoIcon">🎁</span>
+        <span>
+          <strong>Indique e Ganhe</strong>
+          <small>Ganhe 2 meses grátis por cada novo professor indicado.</small>
+        </span>
+      </div>
+      <div class="indicacaoLinkWrap">
+        <input id="linkIndicacao" type="text" readonly value="https://siapai.app/">
+        <button type="button" id="btnCopiarIndicacao">Copiar</button>
+      </div>
+      <small class="indicacaoAjuda" id="indicacaoAjuda">Seu link será carregado pela licença do SIAP.</small>
+    </section>
+
+    <a class="botao tutorial tutorialCompacto" id="btnTutorial" href="https://siapai.app/" target="_blank" rel="noopener noreferrer">
+      <span class="botaoIcon">▶</span>
+      <span>
+        <strong>Tutorial</strong>
+        <small>Aprenda a usar.</small>
+      </span>
+      <span class="seta">›</span>
+    </a>
+
+    <section class="card status-card" id="statusCard">
+      <div class="icon">📅</div>
+      <div class="info">
+        <strong id="statusTitulo">Verificando plano...</strong>
+        <span>Validade do plano</span>
+        <b id="validadePlano">Carregando...</b>
+      </div>
+      <span class="badge" id="statusBadge">...</span>
+    </section>
+
+    <a class="botao suporte" id="btnSuporte" href="https://siapai.app/" target="_blank" rel="noopener noreferrer">
+      <span class="botaoIcon">☎</span>
+      <span>
+        <strong>Site e suporte</strong>
+        <small>Renove e fale conosco em siapai.app.</small>
+      </span>
+      <span class="seta">›</span>
+    </a>
+
+    <footer>
+      <span>🔒 Seus dados estão protegidos</span>
+      <small>Não coletamos senha do SIAP.</small>
+      <small class="versao">SiapAI v5.0.0</small>
+    </footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{
+  "action": {
+    "default_icon": {
+      "128": "icon128.png",
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png"
+    },
+    "default_popup": "popup.html",
+    "default_title": "SiapAI"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "content.js"
+      ],
+      "matches": [
+        "https://siap.educacao.go.gov.br/*"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "js": [
+        "pei/pei-api.js",
+        "pei/pei-ui.js",
+        "pei/pei.js"
+      ],
+      "matches": [
+        "https://siap.educacao.go.gov.br/PlanoEducacionalIndividualizadoPEIProfessorEdicao.aspx*"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "description": "SiapAI: planejamento no SIAP com IA, frequência automática, conteúdo programático e PEI.",
+  "host_permissions": [
+    "https://siapai.online/*",
+    "https://siap.educacao.go.gov.br/*"
+  ],
+  "icons": {
+    "128": "icon128.png",
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png"
+  },
+  "manifest_version": 3,
+  "name": "SiapAI",
+  "permissions": [
+    "storage"
+  ],
+  "version": "5.2.0",
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "https://siap.educacao.go.gov.br/*"
+      ],
+      "resources": [
+        "main_bridge.js",
+        "conteudo/conteudo.js",
+        "frequencia/2.js",
+        "planejamento/config.js",
+        "planejamento/state.js",
+        "planejamento/storage.js",
+        "planejamento/logger.js",
+        "planejamento/utils.js",
+        "planejamento/context.js",
+        "planejamento/matcher.js",
+        "planejamento/api.js",
+        "planejamento/habilidades.js",
+        "planejamento/conteudos.js",
+        "planejamento/validation.js",
+        "planejamento/matriz_saeb.js",
+        "planejamento/eixo.js",
+        "planejamento/bimestre.js",
+        "planejamento/salvar.js",
+        "planejamento/executor.js",
+        "planejamento/ui.js",
+        "planejamento/bootstrap.js"
+      ]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
