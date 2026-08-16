@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SiapAI</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <main class="app">
+    <header class="brand">
+      <div class="mark" aria-hidden="true">S</div>
+      <div><h1>SiapAI</h1><p>Módulos de automação para o SIAP</p></div>
+    </header>
+
+    <section id="pageState" class="page-state" aria-live="polite">
+      <strong>Verificando a tela do SIAP…</strong>
+      <span>Abra uma página do SIAP para carregar o contexto.</span>
+    </section>
+
+    <section id="licenseState" class="license-state" aria-live="polite">
+      <span class="license-dot" aria-hidden="true"></span>
+      <div><strong>Verificando licença…</strong><small>Aguarde um instante.</small></div>
+    </section>
+
+    <nav class="module-tabs" aria-label="Módulos SiapAI">
+      <button class="tab active" data-tab="planejamento" type="button">Planejamento</button>
+      <button class="tab" data-tab="frequencia" type="button">Frequência</button>
+      <button class="tab" data-tab="conteudo" type="button">Conteúdo</button>
+      <button class="tab" data-tab="pei" type="button">PEI</button>
+    </nav>
+
+    <section id="panel-planejamento" class="module-panel active">
+      <h2>Planejamento com IA</h2>
+      <p class="hint">Gere sugestões para a turma aberta. Esta interface fica no Chrome e não altera o painel do SIAP.</p>
+      <label for="lessonCount">Quantidade de aulas</label>
+      <select id="lessonCount"><option value="1">1 aula</option><option value="2">2 aulas</option><option value="3">3 aulas</option><option value="4">4 aulas</option><option value="5">5 aulas</option></select>
+      <label for="planningRequest">Tema ou orientação</label>
+      <textarea id="planningRequest" rows="5" placeholder="Ex.: Arte urbana para o 7º ano, com atividade prática e avaliação formativa."></textarea>
+      <button id="generatePlan" class="primary" type="button">Gerar sugestões</button>
+      <div id="generationOutput" class="output" aria-live="polite"></div>
+    </section>
+
+    <section id="panel-frequencia" class="module-panel">
+      <h2>Frequência</h2>
+      <p>Este módulo será disponibilizado apenas na tela de frequência do SIAP. Assim, ele não interfere nas páginas de planejamento.</p>
+      <button class="secondary" data-open-module="frequencia" type="button">Reconhecer página de frequência</button>
+    </section>
+
+    <section id="panel-conteudo" class="module-panel">
+      <h2>Conteúdo programático</h2>
+      <p>Abra a tela de conteúdo programático do SIAP. O painel reconhecerá a página e mostrará as ações compatíveis.</p>
+      <button class="secondary" data-open-module="conteudo" type="button">Reconhecer página de conteúdo</button>
+    </section>
+
+    <section id="panel-pei" class="module-panel">
+      <h2>PEI com IA</h2>
+      <p>Abra uma tela de PEI do SIAP para gerar conteúdo compatível. Nenhum formulário nativo será redesenhado.</p>
+      <button class="secondary" data-open-module="pei" type="button">Reconhecer página de PEI</button>
+    </section>
+
+    <footer><span>O SiapAI não solicita sua senha do SIAP.</span><small>v5.6.0 · Painel lateral nativo do Chrome</small></footer>
+  </main>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

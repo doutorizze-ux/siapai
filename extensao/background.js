@@ -68,6 +68,10 @@
     return headers;
   }
 
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => {
+    console.warn('[SiapAI] não foi possível configurar o painel lateral:', error);
+  });
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || !message.type) return false;
     const handle = async () => {

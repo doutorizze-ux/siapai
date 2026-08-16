@@ -348,16 +348,6 @@
         }
     }
 
-    window.addEventListener('message', function (event) {
-        const message = event?.data;
-        if (!message || message.source !== 'SIAP_SAAS_MAIN_BRIDGE_SERVER' || message.action !== 'serverCall' || !message.requestId) return;
-        const { path, method, data: payload, token } = message.payload || {};
-        requestViaBackground(path, method, payload, token).then(
-            (result) => window.postMessage({ source: 'SIAP_SAAS_CONTENT_SERVER', requestId: message.requestId, ok: true, payload: { data: result } }, '*'),
-            (error) => window.postMessage({ source: 'SIAP_SAAS_CONTENT_SERVER', requestId: message.requestId, ok: false, payload: { message: error?.message || 'Falha de comunicação com o servidor.' } }, '*')
-        );
-    });
-
     async function requestViaBackground(path, method, data, token) {
         return new Promise((resolve, reject) => {
             try {
@@ -1372,7 +1362,7 @@
         }
 
         if (pageKey === 'planejamento_turma') {
-            return ['planejamento/turma-panel.js'];
+            return ['planejamento/salvar.js'];
         }
 
         if (pageKey === 'conteudo') {
@@ -1450,6 +1440,36 @@
         await injectScriptCode(trimmed, endpoint);
     }
 
+    function getSidePanelContext() {
+        const page = getCurrentProtectedPage();
+        const labels = {
+            planejamento_turma: 'Turma de planejamento aberta',
+            planejamento: 'Edição de aula aberta',
+            frequencia: 'Frequência aberta',
+            conteudo: 'Conteúdo programático aberto'
+        };
+        const fields = [];
+        document.querySelectorAll('input[readonly], input:not([type]), select').forEach((element) => {
+            const value = String(element.value || '').trim();
+            if (!value || value.length > 120) return;
+            const name = String(element.getAttribute('aria-label') || element.name || element.id || '')
+                .replace(/^.*_/, '').replace(/([A-Z])/g, ' $1').trim();
+            if (name) fields.push(`${name}: ${value}`);
+        });
+        return {
+            page: page?.key || 'siap',
+            label: labels[page?.key] || 'Página do SIAP reconhecida',
+            summary: fields.slice(0, 8).join(' · ') || 'Página identificada. Selecione um módulo no painel lateral do SiapAI.',
+            url: location.href
+        };
+    }
+
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+        if (message?.type !== 'SIAP_READ_CONTEXT') return false;
+        sendResponse({ ok: true, context: getSidePanelContext() });
+        return false;
+    });
+
     async function bootProtectedPage(auth) {
         const page = getCurrentProtectedPage();
         if (!page) {
@@ -1483,53 +1503,26 @@
             return;
         }
 
-        await renderHeaderAuthButtons();
-
         const auth = await ensureLogin(siteUserName);
         exposeRuntimeAuthGlobals(auth);
 
         if (auth?.loggedOut || !auth?.email) {
             clearRuntimeAuthGlobals();
-            updateHeaderAuthButtonsState(false);
             console.log('[SIAP SaaS] sessão encerrada manualmente.');
             return;
         }
 
         if (!auth.accessGranted || !auth.token) {
             exposeRuntimeAuthGlobals(auth);
-            updateHeaderAuthButtonsState(true);
-            renderLicenseBadge({
-                user: { email: auth.email },
-                license: auth.license || {},
-                warning_days: auth.renewal?.warning_days ?? 15,
-                days_remaining: auth.renewal?.days_remaining ?? null,
-                expired: true,
-                renewal_available: true,
-                renewal_url: `${APP_BASE}/public/license-renewal-direct.php?email=${encodeURIComponent(auth.email || '')}`,
-                expires_at_br: formatDateBR(auth.license?.expires_at || null),
-            });
-            throw new Error(auth.message || 'Sua licença está vencida. Renove para continuar usando.');
+            console.warn('[SIAP SaaS] licença sem acesso:', auth.message || 'acesso indisponível');
+            return;
         }
-
-        updateHeaderAuthButtonsState(true);
-        await refreshLicensePanel(auth);
-
-        stopLicenseRefresh();
-        LICENSE_REFRESH_INTERVAL = setInterval(() => {
-            refreshLicensePanel(auth).catch((err) => console.warn('[SIAP SaaS] erro ao atualizar a licença:', err));
-        }, LICENSE_REFRESH_MS);
-
-        await bootProtectedPage(auth);
+        console.log('[SIAP SaaS] autenticação concluída sem injeção de interface na página.');
     }
 
     function boot() {
         init().catch(err => {
-            if (shouldSilenceInitError(err)) {
-                console.warn('[SIAP SaaS] módulo ausente ignorado sem popup:', err);
-                return;
-            }
-            console.error('[SIAP SaaS]', err);
-            alert(err.message || 'Erro ao iniciar o loader.');
+            console.warn('[SIAP SaaS] inicialização interrompida sem alterar a página:', err);
         });
     }
 
