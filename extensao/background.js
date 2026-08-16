@@ -50,6 +50,11 @@
           }
           return json || {};
         } catch (err) {
+          if (err?.name === 'AbortError') {
+            err = new Error(`A requisição ${path} demorou mais que o limite e foi cancelada. Tente com menos aulas ou conteúdo menor.`);
+          } else if (!err?.status && (err?.message?.includes('fetch') || err?.message?.includes('Failed') || err?.message?.includes('network'))) {
+            err = new Error(`Não foi possível conectar ao servidor ${base}. Verifique sua internet ou se o bloqueio corporativo não impede o acesso a siapai.online.`);
+          }
           lastError = err;
           if (attempt < MAX_ATTEMPTS) {
             await new Promise((r) => setTimeout(r, 1500 * attempt));
@@ -58,6 +63,9 @@
           console.warn('[SiapAI] falha em', path, 'na base', base, err);
         }
       }
+    }
+    if (lastError instanceof Error && !lastError.message) {
+      lastError = new Error('Falha de comunicação com o servidor.');
     }
     throw lastError instanceof Error ? lastError : new Error('Falha de comunicação com o servidor.');
   }

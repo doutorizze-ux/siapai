@@ -14,7 +14,7 @@ const planningUi = fs.readFileSync(path.join(root, 'planejamento', 'ui.js'), 'ut
 const frequency = fs.readFileSync(path.join(root, 'frequencia', '2.js'), 'utf8');
 const contentProgram = fs.readFileSync(path.join(root, 'conteudo', 'conteudo.js'), 'utf8');
 
-assert.equal(manifest.version, '5.7.0');
+assert.equal(manifest.version, '5.7.1');
 assert.equal(manifest.action.default_popup, undefined, 'A ação não pode usar popup antigo');
 assert.equal(manifest.side_panel.default_path, 'sidepanel.html');
 assert.ok(manifest.permissions.includes('sidePanel'));
