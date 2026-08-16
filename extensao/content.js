@@ -348,6 +348,16 @@
         }
     }
 
+    window.addEventListener('message', function (event) {
+        const message = event?.data;
+        if (!message || message.source !== 'SIAP_SAAS_MAIN_BRIDGE_SERVER' || message.action !== 'serverCall' || !message.requestId) return;
+        const { path, method, data: payload, token } = message.payload || {};
+        requestViaBackground(path, method, payload, token).then(
+            (result) => window.postMessage({ source: 'SIAP_SAAS_CONTENT_SERVER', requestId: message.requestId, ok: true, payload: { data: result } }, '*'),
+            (error) => window.postMessage({ source: 'SIAP_SAAS_CONTENT_SERVER', requestId: message.requestId, ok: false, payload: { message: error?.message || 'Falha de comunicação com o servidor.' } }, '*')
+        );
+    });
+
     async function requestViaBackground(path, method, data, token) {
         return new Promise((resolve, reject) => {
             try {
@@ -1362,7 +1372,7 @@
         }
 
         if (pageKey === 'planejamento_turma') {
-            return ['planejamento/salvar.js'];
+            return ['planejamento/turma-panel.js'];
         }
 
         if (pageKey === 'conteudo') {

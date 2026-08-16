@@ -47,7 +47,7 @@
   "permissions": [
     "storage"
   ],
-  "version": "5.3.0",
+  "version": "5.4.0",
   "web_accessible_resources": [
     {
       "matches": [
@@ -71,6 +71,7 @@
         "planejamento/matriz_saeb.js",
         "planejamento/eixo.js",
         "planejamento/bimestre.js",
+        "planejamento/turma-panel.js",
         "planejamento/salvar.js",
         "planejamento/executor.js",
         "planejamento/ui.js",

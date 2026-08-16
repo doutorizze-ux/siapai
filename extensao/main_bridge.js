@@ -42,7 +42,8 @@
       if (!window.SIAPBootstrap || typeof window.SIAPBootstrap.init !== 'function') throw new Error('SIAPBootstrap.init não está disponível.');
       window.SIAPBootstrap.init();
     } else if (pageKey === 'planejamento_turma') {
-      if (window.SIAPSalvarAbrirProxima && typeof window.SIAPSalvarAbrirProxima.init === 'function') window.SIAPSalvarAbrirProxima.init();
+      if (!window.SIAPTurmaPanel || typeof window.SIAPTurmaPanel.init !== 'function') throw new Error('SIAPTurmaPanel.init não está disponível.');
+      window.SIAPTurmaPanel.init();
     } else if (pageKey === 'frequencia') {
       if (!window.SIAPFrequencia || typeof window.SIAPFrequencia.init !== 'function') throw new Error('SIAPFrequencia.init não está disponível.');
       window.SIAPFrequencia.init();
