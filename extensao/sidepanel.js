@@ -10,9 +10,19 @@ function getAuth() {
   }));
 }
 
+// Erros internos do Chrome (ex.: aba em back/forward cache, service worker dormindo)
+// não interessam ao usuário: quando a operação em si já concluiu, silenciamos.
+function chromeMessageToError(lastError) {
+  const raw = String(lastError?.message || '');
+  if (/back\/forward cache|message channel is closed|Receiving end does not exist|Could not establish/i.test(raw)) {
+    return new Error('Comunicação com a página pausada; recarregue o SIAP se algo não responder.');
+  }
+  return new Error(raw || 'Falha de comunicação interna do navegador.');
+}
+
 function request(message) {
   return new Promise((resolve, reject) => chrome.runtime.sendMessage(message, (response) => {
-    if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+    if (chrome.runtime.lastError) return reject(chromeMessageToError(chrome.runtime.lastError));
     if (!response?.ok) return reject(new Error(response?.error || 'Não foi possível concluir a comunicação.'));
     resolve(response.data);
   }));
@@ -31,7 +41,7 @@ async function engine(command, payload = {}, expectedPage, timeoutMs) {
   return new Promise((resolve, reject) => chrome.tabs.sendMessage(tab.id, {
     type: 'SIAP_ENGINE_COMMAND', command, payload, expectedPage, timeoutMs
   }, (response) => {
-    if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+    if (chrome.runtime.lastError) return reject(chromeMessageToError(chrome.runtime.lastError));
     if (!response?.ok) return reject(new Error(response?.error || 'A automação não pôde ser iniciada.'));
     resolve(response.data);
   }));
@@ -102,7 +112,7 @@ async function validateLicenseEmail() {
       throw new Error('Abra o SIAP e mantenha a página ativa para validar o acesso.');
     }
     const pageContext = await new Promise((resolve, reject) => chrome.tabs.sendMessage(tab.id, { type: 'SIAP_AUTH_CONTEXT' }, (response) => {
-      if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+      if (chrome.runtime.lastError) return reject(chromeMessageToError(chrome.runtime.lastError));
       if (!response?.ok) return reject(new Error(response?.error || 'Não foi possível obter o contexto do SIAP.'));
       resolve(response.data || {});
     }));
@@ -125,7 +135,7 @@ async function validateLicenseEmail() {
       message: result.message || ''
     };
     await new Promise((resolve, reject) => chrome.tabs.sendMessage(tab.id, { type: 'SIAP_AUTH_APPLY', auth }, (applyResponse) => {
-      if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+      if (chrome.runtime.lastError) return reject(chromeMessageToError(chrome.runtime.lastError));
       if (!applyResponse?.ok) return reject(new Error(applyResponse?.error || 'Não foi possível salvar a sessão.'));
       resolve(applyResponse.data);
     }));
@@ -317,7 +327,20 @@ async function runPlanning(command, message) {
     const snapshot = await engine(command, {}, 'planejamento', command === 'PLANNING_APPLY_ALL' ? 30000 : 15000);
     renderPlans(snapshot);
     showOutput('generationOutput', message);
-  } catch (error) { showOutput('generationOutput', error.message, true); } finally { setBusy(button, false); }
+  } catch (error) {
+    // Se a aba do SIAP entrou em cache do navegador (back/forward cache), o
+    // canal do service worker fecha depois da execução — a aplicação pode ter
+    // concluído normalmente; nesse caso não exibimos o erro cru do Chrome.
+    if (command !== 'PLANNING_STOP') {
+      const raw = String(error?.message || '');
+      if (/back\/forward cache|message channel is closed|Receiving end does not exist|Could not establish/i.test(raw)) {
+        console.warn('[SiapAI] Canal fechado após execução (aba em cache do navegador);', raw);
+        showOutput('generationOutput', 'Comando enviado. Se algo não responder, recarregue a página do SIAP.');
+        return;
+      }
+    }
+    showOutput('generationOutput', error.message || 'Não foi possível concluir.', true);
+  } finally { setBusy(button, false); }
 }
 
 async function runFrequency(start) {
