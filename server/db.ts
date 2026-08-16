@@ -5,15 +5,39 @@ import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+/**
+ * Lazy-create the drizzle instance, with retry for transient MySQL failures
+ * (cold start, network blips on self-hosted environments like Coolify).
+ * On the first failure the instance is discarded so the next call retries
+ * from a fresh connection; a bounded number of attempts is tried with
+ * exponential backoff before giving up.
+ */
+async function createDbWithRetry(): Promise<ReturnType<typeof drizzle> | null> {
+  if (!process.env.DATABASE_URL) return null;
+  const maxAttempts = 5;
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
+      const db = drizzle(process.env.DATABASE_URL);
+      // Validate the connection with a lightweight query before returning.
+      await db.execute("SELECT 1");
+      return db;
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxAttempts) {
+        const delayMs = 500 * Math.pow(2, attempt - 1);
+        console.warn(`[Database] conexão falhou (tentativa ${attempt}/${maxAttempts}), aguardando ${delayMs}ms: ${(err as Error).message}`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
     }
+  }
+  console.error("[Database] falha após todas as tentativas de conexão:", lastError);
+  return null;
+}
+
+export async function getDb() {
+  if (!_db) {
+    _db = await createDbWithRetry();
   }
   return _db;
 }
