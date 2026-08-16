@@ -10,7 +10,8 @@ function getBaseUrl(mode: ProductSettings["asaasMode"]): string {
 }
 
 function getToken(): string {
-  const token = process.env.ASAAS_API_KEY?.trim();
+  // Remove espaços, BOM e newlines que o Coolify pode injetar no valor
+  const token = (process.env.ASAAS_API_KEY ?? "").replace(/[\s\uFEFF]+/g, "");
   if (!token) throw new Error("ASAAS_API_KEY não configurada");
   return token;
 }

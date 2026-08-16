@@ -10,8 +10,9 @@ import { ENV } from "./env";
 const ADMIN_OPEN_ID_PREFIX = "local_admin_";
 
 function getLocalAdminConfig(): { email: string; password: string } | null {
-  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const password = process.env.ADMIN_PASSWORD?.trim();
+  // Remove espaços e caracteres invisíveis (BOM, zero-width) que o Coolify pode injetar
+  const email = (process.env.ADMIN_EMAIL ?? "").replace(/[^\S\r\n]+/g, "").trim().toLowerCase();
+  const password = (process.env.ADMIN_PASSWORD ?? "").replace(/\uFEFF/g, "").trim();
   if (!email || !password) return null;
   return { email, password };
 }
