@@ -712,30 +712,41 @@ window.SIAPExecutor = (() => {
       return false;
     }
 
-    // O SIAP só cria lstConteudos_txtDescricaoConteudo_0 depois que um conteúdo
-    // padrão foi efetivamente adicionado. Portanto, nunca tentamos preencher o
-    // personalizado antes dessa confirmação.
+    // O SIAP normalmente cria lstConteudos_txtDescricaoConteudo_0 depois que um
+    // conteúdo padrão é adicionado. Em turmas/disciplinas sem conteúdo padrão
+    // disponível, o textarea do personalizado pode já existir direto — nesse
+    // caso preenchemos sem bloquear o fluxo (tolerante ao fluxo sem padrão).
+    let direto = false;
     if (texto && (!Array.isArray(conteudosAdicionados) || conteudosAdicionados.length === 0)) {
-      throw new Error(
-        'Conteúdo personalizado aguardando: nenhum conteúdo padrão foi confirmado no SIAP.'
-      );
+      const selector = C.SELECTORS.CUSTOM_CONTENT_TEXTAREA ||
+        '#cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_0, textarea[id*="lstConteudos_txtDescricaoConteudo"]';
+      if (document.querySelector(selector)) {
+        direto = true;
+        L.log('[Conteúdo personalizado] Nenhum conteúdo padrão confirmado, mas o campo já está disponível; preenchendo direto.');
+      } else {
+        throw new Error(
+          'Conteúdo personalizado aguardando: nenhum conteúdo padrão foi confirmado no SIAP e o campo de conteúdo personalizado não está disponível nesta aula. Desmarque "Gerar conteúdo personalizado no campo de texto livre" ou use conteúdos nativos no plano.'
+        );
+      }
     }
 
     const selector = C.SELECTORS.CUSTOM_CONTENT_TEXTAREA ||
       '#cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_0, textarea[id*="lstConteudos_txtDescricaoConteudo"]';
 
-    L.log('[Conteúdo personalizado] Conteúdo padrão confirmado. Aguardando o textarea do SIAP...');
+    if (!direto) {
+      L.log('[Conteúdo personalizado] Conteúdo padrão confirmado. Aguardando o textarea do SIAP...');
 
-    const apareceu = await U.waitUntil(
-      () => !!document.querySelector(selector),
-      15000,
-      250
-    );
-
-    if (!apareceu) {
-      throw new Error(
-        'Conteúdo padrão foi confirmado, mas o SIAP não criou o campo de conteúdo personalizado.'
+      const apareceu = await U.waitUntil(
+        () => !!document.querySelector(selector),
+        15000,
+        250
       );
+
+      if (!apareceu) {
+        throw new Error(
+          'Conteúdo padrão foi confirmado, mas o SIAP não criou o campo de conteúdo personalizado.'
+        );
+      }
     }
 
     const ok = U.setTextareaValue(selector, texto);
