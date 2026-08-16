@@ -56,10 +56,10 @@ export default function Checkout() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !name) return;
+    if (!email || !name || !cpf || cpf.replace(/\D/g, "").length < 11) return;
     setStatus("loading");
     try {
-      const result = await createCheckout.mutateAsync({ email, name, cpfCnpj: cpf || undefined });
+      const result = await createCheckout.mutateAsync({ email, name, cpfCnpj: cpf });
       setPaymentId(result.paymentId);
       setPixCode(result.pixQrCode ?? "");
       setValue(result.value);
@@ -110,7 +110,7 @@ export default function Checkout() {
             </Button>
           </Link>
           <a href="/" className="flex items-center gap-2 font-extrabold text-primary">
-            <img src="/manus-storage/siapai-logo-transparent_04b775c0.png" alt="" className="h-7 w-7 rounded-lg" />
+            <img src="/manus-storage/siapai-logo-transparent_04b775c0_69749d88.webp" alt="" className="h-7 w-7 rounded-lg" />
             SiapAI
           </a>
         </div>
@@ -135,8 +135,16 @@ export default function Checkout() {
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="voce@exemplo.com" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="cpf">CPF (opcional)</Label>
-                <Input id="cpf" value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" maxLength={14} />
+                <Label htmlFor="cpf">CPF *</Label>
+                <Input
+                  id="cpf"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value)}
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">Necessário para emitir o Pix (exigência do Asaas).</p>
               </div>
             </div>
             <div className="rounded-2xl border bg-card p-5 flex items-center justify-between">

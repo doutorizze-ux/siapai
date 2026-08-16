@@ -65,7 +65,7 @@ function Header() {
     <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur">
       <div className="container flex h-14 items-center justify-between">
         <a href="#" className="flex items-center gap-2 font-extrabold text-lg tracking-tight text-primary">
-          <img src="/manus-storage/siapai-logo-transparent_04b775c0.png" alt="SiapAI" className="h-8 w-8 rounded-lg" />
+          <img src="/manus-storage/siapai-logo-transparent_04b775c0_69749d88.webp" alt="SiapAI" className="h-8 w-8 rounded-lg" />
           SiapAI
         </a>
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
@@ -80,9 +80,9 @@ function Header() {
               Validar licença
             </Button>
           </Link>
-          <Link href="#preco">
+          <a href="#preco">
             <Button size="sm">Quero começar</Button>
-          </Link>
+          </a>
         </div>
       </div>
     </header>
@@ -107,11 +107,11 @@ function Hero() {
             automaticamente — aulas, frequência, conteúdo programático e PEI.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Link href="#preco">
+            <a href="#preco">
               <Button size="lg" className="text-base px-7">
                 Começar agora
               </Button>
-            </Link>
+            </a>
             <a href="#funcionalidades">
               <Button size="lg" variant="outline" className="text-base px-7 bg-background">
                 Ver como funciona
@@ -126,7 +126,7 @@ function Hero() {
         </div>
         <div className="relative animate-in [animation-delay:120ms]">
           <img
-            src="/manus-storage/planejapro-hero_6660a013.png"
+            src="/manus-storage/planejapro-hero_6660a013_ea0f41c7.webp"
             alt="Painel SiapAI no SIAP"
             className="rounded-2xl border shadow-xl w-full"
           />
@@ -161,7 +161,7 @@ function Features() {
           ))}
         </div>
         <div className="mt-14 rounded-2xl overflow-hidden border shadow-lg">
-          <img src="/manus-storage/planejapro-features_68bf4564.png" alt="Funcionalidades do SiapAI" className="w-full" />
+          <img src="/manus-storage/planejapro-features_68bf4564_00014769.webp" alt="Funcionalidades do SiapAI" className="w-full" />
         </div>
       </div>
     </section>
@@ -276,7 +276,7 @@ function Footer() {
     <footer className="border-t py-8">
       <div className="container flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
         <span className="inline-flex items-center gap-2 font-semibold text-foreground">
-          <img src="/manus-storage/siapai-logo-transparent_04b775c0.png" alt="" className="h-6 w-6 rounded" />
+          <img src="/manus-storage/siapai-logo-transparent_04b775c0_69749d88.webp" alt="" className="h-6 w-6 rounded" />
           SiapAI
         </span>
         <div className="flex items-center gap-5">

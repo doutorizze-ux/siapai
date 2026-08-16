@@ -37,6 +37,32 @@ describe("handleAsaasWebhook", () => {
     });
   });
 
+  it("é idempotente: não desativa uma licença já ativa recebendo o mesmo evento duas vezes", async () => {
+    (db.getAllLicenses as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 42, active: 1, email: "prof@escola.com", code: "PP-TESTE123", customerId: null, paymentId: "pay_123" },
+    ]);
+
+    await handleAsaasWebhook({
+      event: "PAYMENT_RECEIVED",
+      payment: { id: "pay_123", customer: "cus_9", externalReference: "pp-1000|42", status: "RECEIVED" },
+    });
+
+    expect(db.updateLicense).not.toHaveBeenCalled();
+  });
+
+  it("ativa a licença pelo paymentId quando o externalReference não traz id de licença", async () => {
+    (db.getAllLicenses as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 55, active: 0, email: "maria@escola.com", code: "PP-ABC", customerId: "cus_9", paymentId: "pay_777" },
+    ]);
+
+    await handleAsaasWebhook({
+      event: "PAYMENT_RECEIVED",
+      payment: { id: "pay_777", customer: "cus_9", externalReference: "pp-1000", status: "RECEIVED" },
+    });
+
+    expect(db.updateLicense).toHaveBeenCalledWith(55, expect.objectContaining({ active: 1 }));
+  });
+
   it("ignora eventos que não sejam PAYMENT_RECEIVED", async () => {
     await handleAsaasWebhook({ event: "PAYMENT_CONFIRMATION_WAITING", payment: { id: "pay_123" } });
     expect(db.updateLicense).not.toHaveBeenCalled();

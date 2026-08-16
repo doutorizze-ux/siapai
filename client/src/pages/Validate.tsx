@@ -46,7 +46,7 @@ export default function Validate() {
             </Button>
           </Link>
           <a href="/" className="flex items-center gap-2 font-extrabold text-primary">
-            <img src="/manus-storage/siapai-logo-transparent_04b775c0.png" alt="" className="h-7 w-7 rounded-lg" />
+            <img src="/manus-storage/siapai-logo-transparent_04b775c0_69749d88.webp" alt="" className="h-7 w-7 rounded-lg" />
             SiapAI
           </a>
         </div>

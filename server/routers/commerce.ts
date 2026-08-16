@@ -97,7 +97,11 @@ export const commerceRouter = router({
       z.object({
         email: emailSchema,
         name: z.string().min(3).max(120),
-        cpfCnpj: z.string().trim().min(11).max(18).optional(),
+        cpfCnpj: z
+          .string()
+          .trim()
+          .min(11, "CPF ou CNPJ é obrigatório para gerar o Pix (o Asaas exige o documento)")
+          .max(18),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -136,7 +140,7 @@ export const commerceRouter = router({
         code: "",
         active: 0,
         planCode: "planejapro",
-        expiresAt: new Date(String(settings.expiryDate) + "T00:00:00Z"),
+        expiresAt: new Date(settings.expiryDate),
         paymentId: "__pending__",
       });
 
@@ -205,30 +209,58 @@ export async function handleAsaasWebhook(body: unknown) {
     event?: string;
     payment?: { id?: string; customer?: string; externalReference?: string; status?: string };
   };
+  const log = (msg: string) => console.log(`[Asaas webhook] ${msg}`);
+  log(`evento=${data?.event} paymentId=${data?.payment?.id}`);
+
+  // Asaas pode enviar o evento várias vezes (retry) — idempotente: só ativa se ainda pendente
   if (data.event === "PAYMENT_RECEIVED" && data.payment?.id) {
-    const extRef = data.payment.externalReference ?? "";
-    const emailFromLicense = extRef.split("|")[1] ? null : null;
-    // externalReference = "pp-ts|licenseId" ou direto o id da licença
-    const licenseIdMatch = extRef.split("|")[1];
+    const paymentId = data.payment.id;
+    const customerId = data.payment.customer;
+
+    // 1. Tentativa principal: externalReference = "pp-ts|<licenseId>"
+    const licenseIdMatch = (data.payment.externalReference ?? "").split("|")[1];
     if (licenseIdMatch && /^\d+$/.test(licenseIdMatch)) {
       const rows = await getAllLicenses();
       const license = rows.find((r) => String(r.id) === licenseIdMatch);
-      if (license && license.active === 0) {
+      if (license) {
+        if (license.active === 1) {
+          log(`licença ${licenseIdMatch} já ativa, ignorando (idempotente)`);
+          return;
+        }
         await updateLicense(license.id, {
           active: 1,
           startDate: new Date(),
-          paymentId: data.payment.id,
-          customerId: data.payment.customer ?? license.customerId,
+          paymentId,
+          customerId: customerId ?? license.customerId,
         });
+        log(`licença ${licenseIdMatch} (${license.email}) ativada por externalReference`);
+        return;
       }
-    } else {
-      // fallback: localizar pelo paymentId
-      await activateLicenseByPayment(
-        emailFromLicense ?? "unknown",
-        data.payment.id,
-        data.payment.customer,
-      );
     }
+
+    // 2. Fallback: localizar a licença pendente pelo próprio paymentId do Asaas
+    const all = await getAllLicenses();
+    const pending = all.find((r) => r.paymentId === paymentId && r.active === 0);
+    if (pending) {
+      await updateLicense(pending.id, {
+        active: 1,
+        startDate: new Date(),
+        customerId: customerId ?? pending.customerId,
+      });
+      log(`licença ${pending.id} (${pending.email}) ativada por paymentId`);
+      return;
+    }
+
+    // 3. Último recurso: criar a licença (cobre licenças deletadas ou sem registro pendente)
+    if (customerId) {
+      const email = all.find((r) => r.customerId === customerId)?.email;
+      if (email) {
+        await activateLicenseByPayment(email, paymentId, customerId);
+        log(`licença criada/ativada para ${email} via customerId fallback`);
+        return;
+      }
+    }
+    log(`nenhuma licença localizada para paymentId=${paymentId}`);
   }
 }
 
