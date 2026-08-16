@@ -7,6 +7,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 const content = fs.readFileSync(path.join(root, 'content.js'), 'utf8');
 const background = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
 const sidePanel = fs.readFileSync(path.join(root, 'sidepanel.js'), 'utf8');
+const sidePanelCss = fs.readFileSync(path.join(root, 'sidepanel.css'), 'utf8');
 
 assert.equal(manifest.version, '5.6.0');
 assert.equal(manifest.action.default_popup, undefined, 'A ação não pode usar popup antigo');
@@ -14,6 +15,7 @@ assert.equal(manifest.side_panel.default_path, 'sidepanel.html');
 assert.ok(manifest.permissions.includes('sidePanel'));
 assert.ok(fs.existsSync(path.join(root, 'sidepanel.html')));
 assert.ok(fs.existsSync(path.join(root, 'sidepanel.js')));
+assert.ok(sidePanelCss.length > 500, 'O painel lateral precisa ter seu CSS de interface incluso no pacote');
 assert.match(background, /openPanelOnActionClick/);
 assert.match(content, /SIAP_READ_CONTEXT/);
 assert.match(sidePanel, /SIAP_REQUEST/);
