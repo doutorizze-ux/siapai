@@ -68,6 +68,17 @@
                 }
                 mod.init();
             }
+        },
+        {
+            key: 'pei',
+            match: (url) => /PlanoEducacionalIndividualizado|PEI/i.test(url),
+            requiredGlobals: ['SIAPPEIApi'],
+            init() {
+                const mod = getGlobalValue('SIAPPEIApi');
+                if (typeof mod?.collectPayload !== 'function') {
+                    throw new Error('Módulo de PEI não está disponível.');
+                }
+            }
         }
     ];
 
@@ -1216,11 +1227,17 @@
             }
         }
 
-        const creds = await showLoginOverlay();
-        const newAuth = await validateEmailAccess(creds.email, siteUserName);
-        await setAuth(newAuth);
-        await setManualLogout(false);
-        return newAuth;
+        return {
+            email: null,
+            token: null,
+            refreshToken: null,
+            user: null,
+            license: null,
+            renewal: null,
+            accessGranted: false,
+            message: 'Abra o painel lateral do SiapAI para validar o e-mail.',
+            needsLogin: true
+        };
     }
 
     function getCurrentProtectedPage() {
@@ -1446,7 +1463,8 @@
             planejamento_turma: 'Turma de planejamento aberta',
             planejamento: 'Edição de aula aberta',
             frequencia: 'Frequência aberta',
-            conteudo: 'Conteúdo programático aberto'
+            conteudo: 'Conteúdo programático aberto',
+            pei: 'PEI aberto'
         };
         const fields = [];
         document.querySelectorAll('input[readonly], input:not([type]), select').forEach((element) => {
@@ -1464,10 +1482,84 @@
         };
     }
 
+    async function ensureHeadlessEngine(page) {
+        if (!page) throw new Error('Abra uma página compatível do SIAP antes de usar este módulo.');
+
+        const auth = await getAuth();
+        if (!auth?.accessGranted || !auth?.token) {
+            throw new Error('Sua licença precisa estar ativa antes de iniciar uma automação.');
+        }
+
+        exposeRuntimeAuthGlobals(auth);
+        await ensureMainBridgeReady();
+        await bridgeRequest('activateHeadless', {}, 5000);
+
+        if (startedPageKey !== page.key) {
+            if (page.key === 'pei') {
+                const peiUrl = chrome.runtime.getURL('pei/pei-api.js');
+                const source = await fetch(peiUrl).then((response) => {
+                    if (!response.ok) throw new Error('Arquivo do módulo PEI não encontrado.');
+                    return response.text();
+                });
+                await injectScriptCode(source, peiUrl);
+            } else {
+                await loadProtectedModules(page.key, auth.token);
+            }
+            await bridgeRequest('initHeadless', {
+                pageKey: page.key,
+                requiredGlobals: page.requiredGlobals || []
+            }, 15000);
+            startedPageKey = page.key;
+            console.log(`[SIAP SaaS] motor iniciado no modo lateral: ${page.key}`);
+        }
+    }
+
+    async function executeSidePanelCommand(message) {
+        const page = getCurrentProtectedPage();
+        if (!page) {
+            throw new Error('Abra a tela correspondente do SIAP antes de executar este comando.');
+        }
+        if (message.expectedPage && page.key !== message.expectedPage) {
+            throw new Error(`Este comando exige a tela: ${message.expectedPage}. A tela atual é: ${page.key}.`);
+        }
+        await ensureHeadlessEngine(page);
+        return bridgeRequest('engineCommand', {
+            command: message.command,
+            payload: message.payload || {}
+        }, Math.max(15000, Number(message.timeoutMs) || 15000));
+    }
+
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-        if (message?.type !== 'SIAP_READ_CONTEXT') return false;
-        sendResponse({ ok: true, context: getSidePanelContext() });
-        return false;
+        if (message?.type === 'SIAP_READ_CONTEXT') {
+            sendResponse({ ok: true, context: getSidePanelContext() });
+            return false;
+        }
+        if (message?.type === 'SIAP_AUTH_CONTEXT') {
+            Promise.all([waitForSiteUserName(3000), getDeviceSeed()])
+                .then(([siteUserName, deviceSeed]) => sendResponse({ ok: true, data: { siteUserName: siteUserName || '', deviceSeed } }))
+                .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+            return true;
+        }
+        if (message?.type === 'SIAP_AUTH_APPLY') {
+            const auth = message.auth || null;
+            Promise.resolve()
+                .then(async () => {
+                    if (!auth?.token) throw new Error('Sessão de licença inválida.');
+                    await setAuth(auth);
+                    await setManualLogout(false);
+                    exposeRuntimeAuthGlobals(auth);
+                    return { applied: true };
+                })
+                .then((data) => sendResponse({ ok: true, data }))
+                .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+            return true;
+        }
+        if (message?.type !== 'SIAP_ENGINE_COMMAND') return false;
+
+        executeSidePanelCommand(message)
+            .then((data) => sendResponse({ ok: true, data }))
+            .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+        return true;
     });
 
     async function bootProtectedPage(auth) {

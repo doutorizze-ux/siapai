@@ -952,6 +952,7 @@
   }
 
   function renderPanel() {
+    if (window.__SIAP_SAAS_HEADLESS__) return;
     if (!isFrequencyPage() || !isFrequenciaTabActive()) return;
     if (document.querySelector('#tm-gpt-panel-frequencia-v51')) return;
 

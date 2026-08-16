@@ -10,17 +10,18 @@
   <main class="app">
     <header class="brand">
       <div class="mark" aria-hidden="true">S</div>
-      <div><h1>SiapAI</h1><p>Módulos de automação para o SIAP</p></div>
+      <div><h1>SiapAI</h1><p>Automação assistida para o SIAP</p></div>
     </header>
 
-    <section id="pageState" class="page-state" aria-live="polite">
-      <strong>Verificando a tela do SIAP…</strong>
-      <span>Abra uma página do SIAP para carregar o contexto.</span>
-    </section>
-
-    <section id="licenseState" class="license-state" aria-live="polite">
-      <span class="license-dot" aria-hidden="true"></span>
-      <div><strong>Verificando licença…</strong><small>Aguarde um instante.</small></div>
+    <section id="pageState" class="page-state" aria-live="polite"><strong>Verificando a tela do SIAP…</strong><span>Abra a turma ou aula desejada no SIAP.</span></section>
+    <section id="licenseState" class="license-state" aria-live="polite"><span class="license-dot" aria-hidden="true"></span><div><strong>Verificando licença…</strong><small>Aguarde um instante.</small></div></section>
+    <section id="loginPanel" class="login-panel" hidden>
+      <strong>Ative seu acesso</strong>
+      <p>Informe o e-mail vinculado à sua licença. A senha do SIAP nunca é solicitada.</p>
+      <label for="licenseEmail">E-mail da licença</label>
+      <input id="licenseEmail" type="email" autocomplete="email" placeholder="voce@exemplo.com.br">
+      <button id="validateLicense" class="primary" type="button">Validar e-mail</button>
+      <div id="loginOutput" class="output" aria-live="polite"></div>
     </section>
 
     <nav class="module-tabs" aria-label="Módulos SiapAI">
@@ -31,35 +32,63 @@
     </nav>
 
     <section id="panel-planejamento" class="module-panel active">
-      <h2>Planejamento com IA</h2>
-      <p class="hint">Gere sugestões para a turma aberta. Esta interface fica no Chrome e não altera o painel do SIAP.</p>
+      <div class="panel-heading"><h2>Planejamento com IA</h2><span class="page-chip">Edição de aula</span></div>
+      <p class="hint">Use na edição de uma aula. O SiapAI lê a turma e os conteúdos nativos, mas a interface permanece exclusivamente neste painel do Chrome.</p>
       <label for="lessonCount">Quantidade de aulas</label>
-      <select id="lessonCount"><option value="1">1 aula</option><option value="2">2 aulas</option><option value="3">3 aulas</option><option value="4">4 aulas</option><option value="5">5 aulas</option></select>
-      <label for="planningRequest">Tema ou orientação</label>
-      <textarea id="planningRequest" rows="5" placeholder="Ex.: Arte urbana para o 7º ano, com atividade prática e avaliação formativa."></textarea>
-      <button id="generatePlan" class="primary" type="button">Gerar sugestões</button>
-      <div id="generationOutput" class="output" aria-live="polite"></div>
+      <select id="lessonCount"><option value="1">1 aula</option><option value="2">2 aulas</option><option value="3">3 aulas</option><option value="4">4 aulas</option><option value="5">5 aulas</option><option value="6">6 aulas</option><option value="8">8 aulas</option><option value="10">10 aulas</option></select>
+      <label for="planningRequest">Conteúdo para enviar à IA</label>
+      <textarea id="planningRequest" rows="5" placeholder="Cole o tema, as orientações e observações do professor."></textarea>
+      <label for="planningFile">Arquivo texto de apoio</label>
+      <input id="planningFile" type="file" accept=".txt,.md,.csv,.json">
+      <label class="check"><input id="customContent" type="checkbox"> <span>Gerar conteúdo personalizado no campo de texto livre</span></label>
+      <p class="help">Inclui um texto pronto para o campo livre de conteúdo do SIAP.</p>
+      <label class="check"><input id="replicateClass" type="checkbox"> <span>Replicar aula para outra turma</span></label>
+      <p class="help">A opção só é executada quando a turma de destino estiver pronta no SIAP.</p>
+      <div class="button-grid planning-actions">
+        <button id="generatePlan" class="primary" type="button">Gerar planejamentos</button>
+        <button id="applyNext" class="secondary" type="button" disabled>Aplicar próxima aula</button>
+        <button id="applyAll" class="secondary" type="button" disabled>Aplicar todas</button>
+        <button id="stopPlanning" class="danger" type="button" disabled>Parar</button>
+      </div>
+      <div id="generationOutput" class="output" aria-live="polite">Aguardando a geração.</div>
+      <section class="subsection"><div class="subheading"><h3>Prévia dos planejamentos</h3><button id="refreshPlans" class="text-button" type="button">Atualizar</button></div><div id="planPreview" class="plan-preview"><em>Nenhum planejamento carregado.</em></div></section>
+      <section class="subsection"><h3>Reaproveitar aulas salvas</h3><div id="savedPlans" class="saved-plans"><em>Abra uma aula para verificar lotes compatíveis.</em></div></section>
     </section>
 
     <section id="panel-frequencia" class="module-panel">
-      <h2>Frequência</h2>
-      <p>Este módulo será disponibilizado apenas na tela de frequência do SIAP. Assim, ele não interfere nas páginas de planejamento.</p>
-      <button class="secondary" data-open-module="frequencia" type="button">Reconhecer página de frequência</button>
+      <div class="panel-heading"><h2>Frequência automática</h2><span class="page-chip">Frequência</span></div>
+      <p class="hint">Selecione os meses e inicie somente na tela de Frequência do SIAP. A automação respeita faltas e ausências já lançadas.</p>
+      <div id="frequencyMonths" class="month-grid" aria-label="Meses para executar"></div>
+      <div class="inline-actions"><button id="frequencyAll" class="text-button" type="button">Todos</button><button id="frequencyNone" class="text-button" type="button">Limpar</button></div>
+      <div class="button-grid"><button id="frequencyStart" class="primary" type="button">Iniciar frequência</button><button id="frequencyStop" class="danger" type="button">Parar</button></div>
+      <div id="frequencyOutput" class="output" aria-live="polite">Selecione os meses que devem ser processados.</div>
     </section>
 
     <section id="panel-conteudo" class="module-panel">
-      <h2>Conteúdo programático</h2>
-      <p>Abra a tela de conteúdo programático do SIAP. O painel reconhecerá a página e mostrará as ações compatíveis.</p>
-      <button class="secondary" data-open-module="conteudo" type="button">Reconhecer página de conteúdo</button>
+      <div class="panel-heading"><h2>Conteúdo programático</h2><span class="page-chip">Conteúdos</span></div>
+      <p class="hint">Use na aba de Conteúdos do SIAP. O motor percorre dias e aulas, executa o conteúdo planejado e salva cada registro.</p>
+      <div id="contentMonths" class="month-grid" aria-label="Meses para executar"></div>
+      <div class="subheading content-material-heading"><h3>Materiais de apoio</h3><button id="refreshContentMaterials" class="text-button" type="button">Ler materiais da tela</button></div>
+      <p class="help content-help">Os materiais são carregados diretamente da página aberta do SIAP.</p>
+      <div id="contentMaterialList" class="material-list"><em>Abra a aba de Conteúdos e clique em “Ler materiais da tela”.</em></div>
+      <label for="otherMaterialText">Texto livre para “Outros”</label>
+      <textarea id="otherMaterialText" rows="2" maxlength="50" placeholder="Ex.: vídeo, slides ou atividade impressa."></textarea>
+      <label class="check"><input id="doubleLesson" type="checkbox"> <span>Executar duas aulas no mesmo dia quando disponível</span></label>
+      <div class="inline-actions"><button id="contentAll" class="text-button" type="button">Todos os meses</button><button id="contentNone" class="text-button" type="button">Limpar</button></div>
+      <div class="button-grid"><button id="contentStart" class="primary" type="button">Iniciar conteúdo</button><button id="contentStop" class="danger" type="button">Parar</button></div>
+      <div id="contentOutput" class="output" aria-live="polite">Selecione os meses e abra a aba de Conteúdos no SIAP.</div>
     </section>
 
     <section id="panel-pei" class="module-panel">
-      <h2>PEI com IA</h2>
-      <p>Abra uma tela de PEI do SIAP para gerar conteúdo compatível. Nenhum formulário nativo será redesenhado.</p>
-      <button class="secondary" data-open-module="pei" type="button">Reconhecer página de PEI</button>
+      <div class="panel-heading"><h2>PEI com IA</h2><span class="page-chip">PEI</span></div>
+      <p class="hint">Abra o Plano Educacional Individualizado no SIAP. A geração será preenchida apenas nos campos pedagógicos nativos após sua confirmação.</p>
+      <label for="peiInstruction">Orientação complementar</label>
+      <textarea id="peiInstruction" rows="5" placeholder="Ex.: priorizar recursos visuais, avaliação processual e adaptações de acesso."></textarea>
+      <button id="generatePei" class="primary" type="button">Gerar PEI com IA</button>
+      <div id="peiOutput" class="output" aria-live="polite">Abra a tela de PEI para ativar a geração.</div>
     </section>
 
-    <footer><span>O SiapAI não solicita sua senha do SIAP.</span><small>v5.6.0 · Painel lateral nativo do Chrome</small></footer>
+    <footer><span>O SiapAI não solicita a senha do SIAP.</span><small>v5.7.0 · Painel lateral nativo do Chrome</small></footer>
   </main>
   <script src="sidepanel.js"></script>
 </body>

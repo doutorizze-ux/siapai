@@ -922,6 +922,7 @@
   }
 
   function renderPanel() {
+    if (window.__SIAP_SAAS_HEADLESS__) return;
     if (document.querySelector('#tm-exec-panel')) return;
 
     const panel = document.createElement('div');

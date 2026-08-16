@@ -676,6 +676,14 @@ window.SIAPApi = (() => {
   }
 
   function createCatalogProgress(context) {
+    if (window.__SIAP_SAAS_HEADLESS__) {
+      return {
+        update() {},
+        success() {},
+        fail() {},
+        remove() {}
+      };
+    }
     document.getElementById('siap-catalog-registration-overlay')?.remove?.();
 
     const overlay = document.createElement('div');

@@ -36,10 +36,21 @@
     "storage",
     "sidePanel"
   ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "main_bridge.js",
+        "pei/pei-api.js"
+      ],
+      "matches": [
+        "https://siap.educacao.go.gov.br/*"
+      ]
+    }
+  ],
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "version": "5.6.0",
+  "version": "5.7.0",
   "background": {
     "service_worker": "background.js"
   }

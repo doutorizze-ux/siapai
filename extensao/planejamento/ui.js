@@ -663,6 +663,7 @@ window.SIAPUI = (() => {
   }
 
   function buildPanel() {
+    if (window.__SIAP_SAAS_HEADLESS__) return;
     if (document.querySelector('#tm-gpt-panel')) return;
     const panel = document.createElement('div');
     panel.id = 'tm-gpt-panel';
