@@ -1,0 +1,50 @@
+# SiapAI — compose de referência para o Coolify
+# Cole este conteúdo no editor "Docker Compose" do recurso no Coolify
+# e ajuste as variáveis de ambiente na aba Environment Variables.
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    volumes:
+      - mysql-data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: siapai_db
+      MYSQL_USER: siapai
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: "mysql://siapai:${MYSQL_PASSWORD}@mysql:3306/siapai_db"
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET}
+      SIAPAI_JWT_SECRET_FIXED: ${JWT_SECRET:?defina JWT_SECRET}
+      OAUTH_SERVER_URL: ""
+      OWNER_OPEN_ID: ""
+      BUILT_IN_FORGE_API_URL: ""
+      BUILT_IN_FORGE_API_KEY: ""
+      VITE_APP_ID: ""
+      VITE_OAUTH_PORTAL_URL: ""
+      ASAAS_API_URL: ${ASAAS_API_URL:-https://sandbox.asaas.com/api/v3}
+      ASAAS_API_KEY: ${ASAAS_API_KEY:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql-data:

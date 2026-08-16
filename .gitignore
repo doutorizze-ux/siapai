@@ -1,0 +1,8 @@
+node_modules/
+.manus-logs/
+.env
+.env.*
+!/.env.example
+attached_assets/
+dist/
+*.log
