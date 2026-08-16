@@ -68,8 +68,51 @@ async function tryConnectWith(maxAttempts: number, delayMs: number, url: string)
   throw lastErr;
 }
 
-export async function initializeDatabase(): Promise<void> {
+function parseDbName(url: string): string {
+  try {
+    const u = new URL(url);
+    const name = u.pathname.replace(/^\//, "");
+    return name ? decodeURIComponent(name) : "";
+  } catch {
+    return "";
+  }
+}
+
+function stripDbFromUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.pathname = "/";
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+async function ensureDatabase(): Promise<string> {
   const url = process.env.DATABASE_URL!;
+  const dbName = parseDbName(url);
+  if (!dbName) return url;
+  // testa se o database já existe conectando diretamente
+  const connUrl = url.includes("?") ? `${url}&multipleStatements=true` : `${url}?multipleStatements=true`;
+  try {
+    const conn = await mysql.createConnection(connUrl);
+    await conn.ping();
+    await conn.end();
+    return url;
+  } catch {
+    // database pode não existir; conectar sem database e criar
+    const base = stripDbFromUrl(url);
+    const baseConnUrl = base.includes("?") ? `${base}&multipleStatements=true` : `${base}?multipleStatements=true`;
+    const conn = await mysql.createConnection(baseConnUrl);
+    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+    await conn.end();
+    console.log(`[dbInit] database \`${dbName}\` criado.`);
+    return url;
+  }
+}
+
+export async function initializeDatabase(): Promise<void> {
+  const url = await ensureDatabase();
   const connUrl = url.includes("?") ? `${url}&multipleStatements=true` : `${url}?multipleStatements=true`;
   const conn = await tryConnectWith(12, 5000, connUrl);
   try {
