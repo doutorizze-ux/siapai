@@ -1586,7 +1586,16 @@
     }
 
     async function executeSidePanelCommand(message) {
-        const page = getCurrentProtectedPage();
+        const detectedPage = getCurrentProtectedPage();
+        // Algumas instalações do SIAP classificam a própria edição de aula como
+        // "planejamento_turma". O Revisa precisa do motor completo de
+        // Planejamento nessa tela; portanto, normalizamos somente os seus
+        // comandos para a rota que carrega todos os módulos necessários.
+        const isRevisaCommand = /^REVISA_/.test(String(message?.command || ''));
+        const planningPage = PAGE_ROUTES.find((route) => route.key === 'planejamento');
+        const page = isRevisaCommand && detectedPage?.key === 'planejamento_turma' && planningPage
+            ? planningPage
+            : detectedPage;
         if (!page) {
             throw new Error('Abra a tela correspondente do SIAP antes de executar este comando.');
         }

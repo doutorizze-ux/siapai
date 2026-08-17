@@ -223,6 +223,13 @@
 
   async function runHeadlessCommand(command, payload) {
     applyHeadlessUiAdapter();
+    if (command === 'REVISA_CATALOG') {
+      const context = getPlanningContext();
+      if (typeof window.SIAPApi?.loadRevisaCatalog !== 'function') {
+        throw new Error('Catálogo Revisa indisponível no motor de Planejamento.');
+      }
+      return window.SIAPApi.loadRevisaCatalog(context);
+    }
     if (command === 'PLANNING_PREPARE') {
       const context = getPlanningContext();
       const count = Math.max(1, Math.min(20, Number(payload?.count) || 1));
