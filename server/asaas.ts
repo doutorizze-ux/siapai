@@ -36,7 +36,12 @@ export interface AsaasPayment {
 }
 
 async function asaasRequest(path: string, options: RequestInit = {}): Promise<unknown> {
-  const res = await fetch(`${getBaseUrl("sandbox")}${path}`, {
+  // Se ASAAS_API_URL for configurada (ex: api.asaas.com), usar essa URL diretamente.
+  // Caso contrário, fallback para sandbox.
+  const envUrl = getBaseUrl("sandbox");
+  const useProdUrl = envUrl !== DEFAULT_SANDBOX_URL;
+  const baseUrl = useProdUrl ? envUrl : DEFAULT_SANDBOX_URL;
+  const res = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
