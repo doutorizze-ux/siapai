@@ -141,6 +141,31 @@
     };
   }
 
+  // Em recargas do SIAP, a aba lateral pode solicitar o snapshot antes de o
+  // bootstrap normal concluir. O lote ativo vive em sessionStorage para que a
+  // aplicação sobreviva ao postback; recupere-o antes de devolver um snapshot
+  // vazio, sem misturá-lo com a biblioteca permanente de aulas salvas.
+  function rehydratePlanningStateForSnapshot() {
+    const state = window.SIAPState || {};
+    if (Array.isArray(state.generatedPlans) && state.generatedPlans.length) return false;
+    try {
+      const keys = window.SIAPConfig?.STORAGE_KEYS || {};
+      const rawPlans = sessionStorage.getItem(keys.GENERATED_PLANS || 'tm_gpt_generatedPlans');
+      if (!rawPlans) return false;
+      const plans = JSON.parse(rawPlans);
+      if (!Array.isArray(plans) || !plans.length) return false;
+      state.generatedPlans = plans;
+      const savedIndex = parseInt(sessionStorage.getItem(keys.CURRENT_PLAN_INDEX || 'tm_gpt_currentPlanIndex') || '0', 10);
+      state.currentPlanIndex = Math.max(0, Math.min(Number.isFinite(savedIndex) ? savedIndex : 0, plans.length));
+      const rawContext = sessionStorage.getItem(keys.GENERATED_PLANS_CONTEXT || 'tm_gpt_generatedPlansContext');
+      state.generatedPlansContext = rawContext ? JSON.parse(rawContext) : null;
+      return true;
+    } catch (error) {
+      console.warn('[SiapAI] Não foi possível reidratar o lote ativo para o painel:', error);
+      return false;
+    }
+  }
+
   function persistPlanningState() {
     const state = window.SIAPState || {};
     const keys = window.SIAPConfig?.STORAGE_KEYS || {};
@@ -278,18 +303,9 @@
       window.SIAPExecutor?.saveGeneratedPlansToLibrary?.(context, valid.aulas);
       return getPlanningSnapshot();
     }
-    if (command === 'PLANNING_SNAPSHOT') return { ...getPlanningSnapshot(), savedPlans: getSavedPlanLibrary() };
-    if (command === 'REVISA_CATALOG') {
-      assertRuntimeLicense('REVISA_CATALOG');
-      const context = getPlanningContext();
-      if (!window.SIAPApi?.loadRevisaCatalog) throw new Error('O catálogo Revisa não está disponível nesta página do SIAP.');
-      const catalog = await window.SIAPApi.loadRevisaCatalog(context);
-      const result = catalog && typeof catalog === 'object' ? catalog : { disponivel: false, materiais: [] };
-      if (!result.disponivel || !Array.isArray(result.materiais)) {
-        return { disponivel: false, materiais: [], contextKey: '' };
-      }
-      const contextKey = `${String(context.serieAno || '')}|${String(context.disciplina || '')}`.toLowerCase();
-      return { ...result, contextKey };
+    if (command === 'PLANNING_SNAPSHOT') {
+      rehydratePlanningStateForSnapshot();
+      return { ...getPlanningSnapshot(), savedPlans: getSavedPlanLibrary() };
     }
     if (command === 'PLANNING_APPLY_NEXT') {
       await window.SIAPExecutor?.applyNextPlan?.();

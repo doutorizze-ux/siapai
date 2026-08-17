@@ -2,6 +2,8 @@ const byId = (id) => document.getElementById(id);
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 let activeContext = null;
 let supportFileText = '';
+let planningGenerationInFlight = false;
+const revisaFeatureEnabled = false;
 const revisaState = { catalog: null, selection: null, busy: false };
 
 function getAuth() {
@@ -66,12 +68,16 @@ function showOutput(id, text, error = false) {
 function setBusy(button, busy, label) {
   if (!button) return;
   if (busy) {
-    button.dataset.label = button.textContent;
+    // A mesma operação atualiza o rótulo duas vezes ("Preparando…" e
+    // "Gerando com IA…"). Guarde o texto original apenas no primeiro bloqueio.
+    if (button.dataset.busy !== '1') button.dataset.label = button.textContent;
+    button.dataset.busy = '1';
     button.textContent = label || 'Processando…';
     button.disabled = true;
   } else {
     button.textContent = button.dataset.label || button.textContent;
-    button.disabled = false;
+    button.dataset.busy = '0';
+    button.disabled = button.dataset.disabledByPlans === '1';
   }
 }
 
@@ -260,9 +266,11 @@ function renderPlans(snapshot) {
     });
   }
   const hasPlans = plans.length > 0;
-  byId('applyNext').disabled = !hasPlans;
-  byId('applyAll').disabled = !hasPlans;
-  byId('stopPlanning').disabled = !hasPlans;
+  ['applyNext', 'applyAll', 'stopPlanning'].forEach((id) => {
+    const button = byId(id);
+    button.dataset.disabledByPlans = hasPlans ? '0' : '1';
+    if (button.dataset.busy !== '1') button.disabled = !hasPlans;
+  });
   renderSavedPlans(snapshot?.savedPlans || []);
 }
 
@@ -293,16 +301,12 @@ function renderSavedPlans(entries) {
 }
 
 async function refreshPlans() {
+  // O SIAP pode atualizar a aba durante a geração. Nesse intervalo, um
+  // snapshot transitório vazio não pode apagar a prévia recém-gerada.
+  if (planningGenerationInFlight) return;
   const page = String(activeContext?.page || '');
   if (page && page !== 'planejamento') {
     renderPlans({ plans: [] });
-    renderRevisaCatalog({
-      disponivel: false,
-      materiais: [],
-      reason: page === 'planejamento_turma'
-        ? 'Abra uma aula específica no SIAP para carregar o Revisa desta turma e disciplina.'
-        : 'Abra a edição de uma aula do SIAP para consultar o Revisa.'
-    });
     return;
   }
   try {
@@ -311,7 +315,15 @@ async function refreshPlans() {
   } catch (_) {
     renderPlans({ plans: [] });
   }
-  await refreshRevisaCatalog();
+}
+
+function disableRevisaFeature() {
+  const box = byId('revisaBox');
+  if (box) box.hidden = true;
+  const toggle = byId('revisaEnabled');
+  if (toggle) { toggle.checked = false; toggle.disabled = true; }
+  revisaState.catalog = null;
+  revisaState.selection = null;
 }
 
 async function loadSupportFile() {
@@ -502,6 +514,10 @@ function saveRevisaSelection() {
 }
 
 async function refreshRevisaCatalog() {
+  if (!revisaFeatureEnabled) {
+    disableRevisaFeature();
+    return;
+  }
   const box = byId('revisaBox');
   if (!box) return;
   if (revisaState.busy) return;
@@ -528,14 +544,14 @@ async function generatePlan() {
   const auth = await refreshLicense();
   if (!auth?.token) return showOutput('generationOutput', 'Sua licença precisa estar ativa antes de gerar planejamentos.', true);
   try {
+    planningGenerationInFlight = true;
     setBusy(button, true, 'Preparando…');
     await loadSupportFile();
     const count = Number(byId('lessonCount').value || 1);
     const instruction = [byId('planningRequest').value.trim(), supportFileText.trim()].filter(Boolean).join('\n\n');
-    const revisaConfig = readRevisaSelection();
-    if (!byId('revisaBox')?.hidden && byId('revisaEnabled')?.checked && !revisaConfig) {
-      throw new Error('O Planejar com Revisa está ativado, mas o bloco e a sequência de atividades precisam ser selecionados.');
-    }
+    // O backend atual não contém o catálogo Revisa. Enquanto ele não existir,
+    // o Planejamento segue apenas com o fluxo normal, sem configuração parcial.
+    const revisaConfig = null;
     const options = { count, instruction, supportText: supportFileText, customContentEnabled: byId('customContent').checked, replicateToOtherClass: byId('replicateClass').checked, revisaConfig };
     const prepared = await engine('PLANNING_PREPARE', options, 'planejamento', 30000);
     setBusy(button, true, 'Gerando com IA…');
@@ -549,7 +565,10 @@ async function generatePlan() {
     showOutput('generationOutput', `${snapshot.count} aula(s) gerada(s). Revise a prévia e escolha “Aplicar próxima aula” ou “Aplicar todas”.`);
   } catch (error) {
     showOutput('generationOutput', error.message || 'Não foi possível gerar os planejamentos.', true);
-  } finally { setBusy(button, false); }
+  } finally {
+    planningGenerationInFlight = false;
+    setBusy(button, false);
+  }
 }
 
 async function runPlanning(command, message) {
@@ -640,6 +659,7 @@ function initTabs() {
 createMonthGrid('frequencyMonths');
 createMonthGrid('contentMonths');
 createMonthGrid('peiMonths');
+disableRevisaFeature();
 byId('generatePlan').addEventListener('click', generatePlan);
 byId('applyNext').addEventListener('click', () => runPlanning('PLANNING_APPLY_NEXT', 'Próxima aula enviada para os campos nativos do SIAP. Revise antes de salvar.'));
 byId('applyAll').addEventListener('click', () => runPlanning('PLANNING_APPLY_ALL', 'Aplicação automática iniciada. Mantenha a tela do SIAP aberta.'));
