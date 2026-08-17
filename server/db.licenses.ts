@@ -6,6 +6,10 @@ import { nanoid } from "nanoid";
 // entre a rotina de inicialização e as consultas de produção.
 export const PRODUCT_SETTINGS_TABLE = "product_settings";
 
+export function productSettingsSelectSql() {
+  return `SELECT * FROM ${PRODUCT_SETTINGS_TABLE} LIMIT 1`;
+}
+
 export async function createLicense(input: InsertLicense): Promise<License> {
   const pool = getDbOrThrow();
   const code = input.code && input.code.trim().length > 0 ? input.code : `PP-${nanoid(12).toUpperCase()}`;
@@ -78,7 +82,7 @@ export async function deleteLicense(id: number) {
 export async function getProductSettings(): Promise<ProductSettings> {
   const pool = getDbOrThrow();
   const [rows] = await pool.query(
-    `SELECT * FROM ${PRODUCT_SETTINGS_TABLE} LIMIT 1`
+    productSettingsSelectSql()
   );
   const arr = rows as unknown[];
   if (arr.length === 0) {
@@ -90,7 +94,7 @@ export async function getProductSettings(): Promise<ProductSettings> {
 export async function updateProductSettings(patch: Partial<ProductSettings>) {
   const pool = getDbOrThrow();
   const [rows] = await pool.query(
-    `SELECT * FROM ${PRODUCT_SETTINGS_TABLE} LIMIT 1`
+    productSettingsSelectSql()
   );
   const arr = rows as unknown[];
   const current = arr.length > 0 ? arr[0] as ProductSettings : undefined;
@@ -122,7 +126,7 @@ async function createDefaultSettings(): Promise<ProductSettings> {
     ["PlanejaPro SIAP", 5990, 6, "BRL", "Acesso ao PlanejaPro até 31/12 do ano. Pagamento único, sem mensalidade.", new Date("2026-12-31T00:00:00Z"), "sandbox"]
   );
   const [rows] = await pool.query(
-    `SELECT * FROM productSettings LIMIT 1`
+    productSettingsSelectSql()
   );
   const arr = rows as unknown[];
   return arr[0] as ProductSettings;
