@@ -62,13 +62,16 @@
 
   const DEFAULT_STATE = {
     autoMode: false,
-    stage: 'idle', // idle | change_month | open_day | select_lesson | execute_content | execute_materials | save
+    stage: 'idle', // idle | change_month | open_day | select_lesson | execute_content | execute_materials | save | confirm_save
     currentDay: '',
     targetMonth: null,
     currentLesson: 1,
     deferredDay: '',
     forceNextDay: '',
     revisitingDeferred: false,
+    pendingSaveDay: '',
+    pendingSaveStartedAt: 0,
+    afterSave: null,
     doneMonths: [],
     skippedAbsenceDays: [],
     selectedMaterials: [],
@@ -95,6 +98,9 @@
         deferredDay: String(parsed?.deferredDay || ''),
         forceNextDay: String(parsed?.forceNextDay || ''),
         revisitingDeferred: !!parsed?.revisitingDeferred,
+        pendingSaveDay: String(parsed?.pendingSaveDay || ''),
+        pendingSaveStartedAt: Number.isFinite(Number(parsed?.pendingSaveStartedAt)) ? Number(parsed.pendingSaveStartedAt) : 0,
+        afterSave: parsed?.afterSave && typeof parsed.afterSave === 'object' ? parsed.afterSave : null,
         doneMonths: normalizeMonthArray(parsed?.doneMonths),
         skippedAbsenceDays: Array.isArray(parsed?.skippedAbsenceDays) ? parsed.skippedAbsenceDays.map(String).filter(Boolean) : [],
         selectedMaterials: Array.isArray(parsed?.selectedMaterials) ? parsed.selectedMaterials : [],
@@ -284,9 +290,8 @@
 
   function getSavedSelectedMonths() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(LOCAL.SELECTED_MONTHS) || 'null');
-      const normalized = normalizeMonthArray(parsed);
-      if (normalized.length) return normalized;
+      const raw = localStorage.getItem(LOCAL.SELECTED_MONTHS);
+      if (raw !== null) return normalizeMonthArray(JSON.parse(raw));
     } catch (_) {}
 
     const current = getCurrentMonthIndex();
@@ -658,6 +663,61 @@
     return getSelectedDateBR() === formatCanonicalToBR(state.currentDay);
   }
 
+  function isDayStillPending(canonical) {
+    const day = getDayCellByCanonical(canonical);
+    return !!day && isPendingDay(day);
+  }
+
+  function hasSaveFailureMessage() {
+    const message = getPainelMensagemText();
+    return /erro ao salvar|falha ao salvar|nao foi possivel salvar|não foi possível salvar/.test(message);
+  }
+
+  function clearPendingSave() {
+    state.pendingSaveDay = '';
+    state.pendingSaveStartedAt = 0;
+    state.afterSave = null;
+  }
+
+  function restoreAfterConfirmedSave() {
+    const after = state.afterSave || {};
+    state.stage = String(after.stage || 'open_day');
+    state.currentDay = String(after.currentDay || '');
+    state.currentLesson = Number.isInteger(after.currentLesson) && after.currentLesson > 0 ? after.currentLesson : 1;
+    state.deferredDay = String(after.deferredDay || '');
+    state.forceNextDay = String(after.forceNextDay || '');
+    state.revisitingDeferred = !!after.revisitingDeferred;
+    clearPendingSave();
+    saveState();
+  }
+
+  function confirmSave() {
+    const canonical = state.pendingSaveDay;
+
+    if (!canonical) {
+      state.stage = 'open_day';
+      saveState();
+      return { confirmed: true, retry: false };
+    }
+
+    if (!isSiteBusy() && !isDayStillPending(canonical)) {
+      log(`Salvamento confirmado para ${formatCanonicalToBR(canonical)}.`);
+      restoreAfterConfirmedSave();
+      return { confirmed: true, retry: false };
+    }
+
+    const timedOut = state.pendingSaveStartedAt && Date.now() - state.pendingSaveStartedAt > 18000;
+    if (hasSaveFailureMessage() || timedOut) {
+      log(`O SIAP não confirmou o salvamento de ${formatCanonicalToBR(canonical)}. Vou tentar salvar novamente.`);
+      clearPendingSave();
+      state.stage = 'save';
+      saveState();
+      return { confirmed: false, retry: true };
+    }
+
+    return { confirmed: false, retry: false };
+  }
+
   function getPlannedContentRows() {
     const grid = document.querySelector(SELECTORS.CONTENT_GRID);
     if (!grid) return [];
@@ -873,6 +933,7 @@
       case 'execute_content': return 'Executando conteúdo';
       case 'execute_materials': return 'Executando materiais';
       case 'save': return 'Salvando';
+      case 'confirm_save': return 'Confirmando salvamento';
       default: return 'Parado';
     }
   }
@@ -1556,37 +1617,59 @@
     const currentLesson = getDesiredLessonNumber();
     const nextLesson = getNextLessonNumber(currentLesson);
 
+    let afterSave;
+
     if (nextLesson !== null) {
-      state.stage = 'select_lesson';
-      state.currentLesson = nextLesson;
-      saveState();
+      afterSave = {
+        stage: 'select_lesson',
+        currentDay: savedDay,
+        currentLesson: nextLesson,
+        deferredDay: state.deferredDay,
+        forceNextDay: state.forceNextDay,
+        revisitingDeferred: state.revisitingDeferred
+      };
       log(`Salvando ${lessonLabel(currentLesson)}. Depois vou executar ${lessonLabel(nextLesson)} no mesmo dia...`);
     } else {
       const wasRevisitingDeferred = !!state.revisitingDeferred;
+      let deferredDay = state.deferredDay;
+      let forceNextDay = state.forceNextDay;
+      let revisitingDeferred = false;
 
       if (wasRevisitingDeferred) {
-        state.deferredDay = '';
-        state.forceNextDay = '';
-        state.revisitingDeferred = false;
-      } else if (state.deferredDay && savedDay && savedDay !== state.deferredDay) {
-        state.forceNextDay = state.deferredDay;
-        state.deferredDay = '';
-        state.revisitingDeferred = false;
+        deferredDay = '';
+        forceNextDay = '';
+      } else if (deferredDay && savedDay && savedDay !== deferredDay) {
+        forceNextDay = deferredDay;
+        deferredDay = '';
       } else if (savedDay) {
-        state.deferredDay = savedDay;
-        state.forceNextDay = '';
-        state.revisitingDeferred = false;
+        deferredDay = savedDay;
+        forceNextDay = '';
       }
 
-      state.stage = 'open_day';
-      state.currentDay = '';
-      state.currentLesson = 1;
-      saveState();
+      afterSave = {
+        stage: 'open_day',
+        currentDay: '',
+        currentLesson: 1,
+        deferredDay,
+        forceNextDay,
+        revisitingDeferred
+      };
       log('Clicando em Salvar...');
     }
 
-    safeClick(button);
-    return true;
+    state.pendingSaveDay = savedDay;
+    state.pendingSaveStartedAt = Date.now();
+    state.afterSave = afterSave;
+    state.stage = 'confirm_save';
+    saveState();
+
+    const clicked = safeClick(button);
+    if (!clicked) {
+      clearPendingSave();
+      state.stage = 'save';
+      saveState();
+    }
+    return clicked;
   }
 
   async function run() {
@@ -1794,6 +1877,12 @@
         if (ok) scheduleNext(DELAY.afterSave);
         else scheduleNext(DELAY.retry);
         return ok;
+      }
+
+      if (state.stage === 'confirm_save') {
+        const result = confirmSave();
+        scheduleNext(result.confirmed ? 700 : (result.retry ? DELAY.retry : 900));
+        return result.confirmed;
       }
 
       await sleep(500);

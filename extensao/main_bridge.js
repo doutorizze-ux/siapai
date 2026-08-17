@@ -181,6 +181,12 @@
     if (command === 'FREQUENCY_CONFIGURE') {
       const months = Array.isArray(payload?.months) ? payload.months.map(Number).filter((n) => n >= 0 && n <= 11) : [];
       localStorage.setItem('siap_freq_v51_selected_months', JSON.stringify([...new Set(months)].sort((a, b) => a - b)));
+      sessionStorage.removeItem('siap_freq_v51_done_months');
+      sessionStorage.removeItem('siap_freq_v51_target_month');
+      sessionStorage.removeItem('siap_freq_v51_current_day');
+      sessionStorage.removeItem('siap_freq_v51_pending_save_day');
+      sessionStorage.removeItem('siap_freq_v51_pending_save_at');
+      sessionStorage.setItem('siap_freq_v51_phase', 'click_day');
       return { months };
     }
     if (command === 'FREQUENCY_START') {
@@ -200,7 +206,22 @@
       localStorage.setItem('tm_executor_conteudo_other_material_text_v13', String(payload?.otherMaterialText || '').slice(0, 50));
       const current = JSON.parse(sessionStorage.getItem('tm_executor_conteudo_state_v13') || '{}');
       const selectedMaterials = Array.isArray(payload?.materials) ? payload.materials : [];
-      sessionStorage.setItem('tm_executor_conteudo_state_v13', JSON.stringify({ ...current, selectedMaterials, autoMode: !!payload?.autoMode }));
+      sessionStorage.setItem('tm_executor_conteudo_state_v13', JSON.stringify({
+        ...current,
+        selectedMaterials,
+        autoMode: !!payload?.autoMode,
+        stage: 'idle',
+        currentDay: '',
+        targetMonth: null,
+        currentLesson: 1,
+        deferredDay: '',
+        forceNextDay: '',
+        revisitingDeferred: false,
+        doneMonths: [],
+        pendingSaveDay: '',
+        pendingSaveStartedAt: 0,
+        afterSave: null
+      }));
       return { months, materials: selectedMaterials };
     }
     if (command === 'CONTENT_MATERIAL_OPTIONS') {
@@ -228,13 +249,27 @@
     if (command === 'PEI_COLLECT') {
       if (!window.SIAPPEIApi?.collectPayload) throw new Error('Abra a tela de PEI compatível do SIAP.');
       const data = window.SIAPPEIApi.collectPayload();
+      const months = Array.isArray(payload?.months) ? payload.months.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 11) : [];
+      if (!months.length) throw new Error('Selecione ao menos um mês permitido para o PEI.');
+      const bimestre = parseInt(String(data.bimestre || '').match(/[1-4]/)?.[0] || '', 10);
+      if (!Number.isInteger(bimestre)) throw new Error('Não foi possível identificar o bimestre exibido no PEI do SIAP.');
+      const periodMonths = [(bimestre - 1) * 3, (bimestre - 1) * 3 + 1, (bimestre - 1) * 3 + 2];
+      if (!months.some((month) => periodMonths.includes(month))) {
+        throw new Error(`O PEI aberto é do ${bimestre}º bimestre e não pertence aos meses selecionados.`);
+      }
       data.comando_ia = String(payload?.instruction || '').trim();
+      data.meses_selecionados = months;
+      data.meses_bimestre = periodMonths;
       return data;
     }
     if (command === 'PEI_FILL') {
       if (!window.SIAPPEIApi?.fillFields) throw new Error('Motor de preenchimento do PEI indisponível.');
       window.SIAPPEIApi.fillFields(payload?.data || payload || {});
       return { filled: true };
+    }
+    if (command === 'PEI_FILL_AND_SAVE') {
+      if (!window.SIAPPEIApi?.fillAndSave) throw new Error('Motor de salvamento do PEI indisponível.');
+      return await window.SIAPPEIApi.fillAndSave(payload?.data || payload || {});
     }
     throw new Error('Comando não reconhecido pelo motor da extensão.');
   }

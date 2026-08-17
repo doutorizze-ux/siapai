@@ -160,8 +160,8 @@
 
                 const response = await window.SIAPPEIApi.generate(payload);
 
-                window.SIAPPEIApi.fillFields(response.data);
-                window.SIAPPEIUI.toast('PEI gerado com sucesso!', 'success');
+                await window.SIAPPEIApi.fillAndSave(response.data);
+                window.SIAPPEIUI.toast('PEI gerado e salvo com confirmação do SIAP.', 'success');
 
             } catch (error) {
                 console.error('[SIAP PEI] erro:', error);

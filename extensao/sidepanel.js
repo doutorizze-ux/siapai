@@ -383,12 +383,15 @@ async function generatePei() {
   try {
     setBusy(button, true, 'Lendo PEI…');
     const instruction = byId('peiInstruction').value.trim();
-    const payload = await engine('PEI_COLLECT', { instruction }, 'pei');
+    const months = selectedMonths('peiMonths');
+    if (!months.length) throw new Error('Selecione ao menos um mês permitido para o PEI.');
+    const payload = await engine('PEI_COLLECT', { instruction, months }, 'pei');
     setBusy(button, true, 'Gerando com IA…');
     const response = await request({ type: 'SIAP_REQUEST', path: '/pei_generate.php', method: 'POST', token: auth.token, data: payload });
     const data = response?.data?.data || response?.data || response;
-    await engine('PEI_FILL', { data }, 'pei');
-    showOutput('peiOutput', 'PEI gerado e preenchido nos campos nativos. Revise o texto no SIAP antes de salvar.');
+    setBusy(button, true, 'Salvando no SIAP…');
+    await engine('PEI_FILL_AND_SAVE', { data }, 'pei', 30000);
+    showOutput('peiOutput', 'PEI gerado e salvo com confirmação do SIAP.');
   } catch (error) { showOutput('peiOutput', error.message || 'Não foi possível gerar o PEI.', true); } finally { setBusy(button, false); }
 }
 
@@ -403,6 +406,7 @@ function initTabs() {
 
 createMonthGrid('frequencyMonths');
 createMonthGrid('contentMonths');
+createMonthGrid('peiMonths');
 byId('generatePlan').addEventListener('click', generatePlan);
 byId('applyNext').addEventListener('click', () => runPlanning('PLANNING_APPLY_NEXT', 'Próxima aula enviada para os campos nativos do SIAP. Revise antes de salvar.'));
 byId('applyAll').addEventListener('click', () => runPlanning('PLANNING_APPLY_ALL', 'Aplicação automática iniciada. Mantenha a tela do SIAP aberta.'));
@@ -412,6 +416,8 @@ byId('frequencyAll').addEventListener('click', () => setAllMonths('frequencyMont
 byId('frequencyNone').addEventListener('click', () => setAllMonths('frequencyMonths', false));
 byId('contentAll').addEventListener('click', () => setAllMonths('contentMonths', true));
 byId('contentNone').addEventListener('click', () => setAllMonths('contentMonths', false));
+byId('peiAll').addEventListener('click', () => setAllMonths('peiMonths', true));
+byId('peiNone').addEventListener('click', () => setAllMonths('peiMonths', false));
 byId('frequencyStart').addEventListener('click', () => runFrequency(true));
 byId('frequencyStop').addEventListener('click', () => runFrequency(false));
 byId('contentStart').addEventListener('click', () => runContent(true));

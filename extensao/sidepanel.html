@@ -81,14 +81,17 @@
 
     <section id="panel-pei" class="module-panel">
       <div class="panel-heading"><h2>PEI com IA</h2><span class="page-chip">PEI</span></div>
-      <p class="hint">Abra o Plano Educacional Individualizado no SIAP. A geração será preenchida apenas nos campos pedagógicos nativos após sua confirmação.</p>
+      <p class="hint">Abra o Plano Educacional Individualizado no SIAP. O SiapAI usa o bimestre exibido na tela, preenche os campos pedagógicos e só conclui após o SIAP confirmar o salvamento.</p>
+      <div id="peiMonths" class="month-grid" aria-label="Meses permitidos para o PEI"></div>
+      <div class="inline-actions"><button id="peiAll" class="text-button" type="button">Todos os meses</button><button id="peiNone" class="text-button" type="button">Limpar</button></div>
+      <p class="help">O PEI é bimestral: o registro aberto só será gerado se o bimestre tiver ao menos um mês marcado.</p>
       <label for="peiInstruction">Orientação complementar</label>
       <textarea id="peiInstruction" rows="5" placeholder="Ex.: priorizar recursos visuais, avaliação processual e adaptações de acesso."></textarea>
       <button id="generatePei" class="primary" type="button">Gerar PEI com IA</button>
-      <div id="peiOutput" class="output" aria-live="polite">Abra a tela de PEI para ativar a geração.</div>
+      <div id="peiOutput" class="output" aria-live="polite">Selecione os meses permitidos e abra a tela de PEI para gerar e salvar o período exibido no SIAP.</div>
     </section>
 
-    <footer><span>O SiapAI não solicita a senha do SIAP.</span><small>v5.8.4 · Painel lateral nativo do Chrome</small></footer>
+    <footer><span>O SiapAI não solicita a senha do SIAP.</span><small>v5.9.0 · Painel lateral nativo do Chrome</small></footer>
   </main>
   <script src="sidepanel.js"></script>
 </body>

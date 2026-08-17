@@ -16,10 +16,12 @@
     LAST_DAY: 'siap_freq_v51_last_day',
     CURRENT_DAY: 'siap_freq_v51_current_day',
     LOGS: 'siap_freq_v51_logs',
-    PHASE: 'siap_freq_v51_phase', // click_day | save_day | change_month
+    PHASE: 'siap_freq_v51_phase', // click_day | save_day | confirm_save | change_month
     TARGET_MONTH: 'siap_freq_v51_target_month',
     DONE_MONTHS: 'siap_freq_v51_done_months',
-    SKIPPED_ABSENCE_DAYS: 'siap_freq_v51_skipped_absence_days'
+    SKIPPED_ABSENCE_DAYS: 'siap_freq_v51_skipped_absence_days',
+    PENDING_SAVE_DAY: 'siap_freq_v51_pending_save_day',
+    PENDING_SAVE_AT: 'siap_freq_v51_pending_save_at'
   };
 
   const LOCAL = {
@@ -33,7 +35,8 @@
     AFTER_MONTH_CHANGE: 1800,
     LOOP_DELAY: 900,
     LOADING_CHECK: 600,
-    LOADING_STABLE: 700
+    LOADING_STABLE: 700,
+    SAVE_CONFIRM_TIMEOUT: 18000
   };
 
   const START_FLAG = '__SIAP_FREQ_V51_STARTED__';
@@ -218,9 +221,8 @@
 
   function getSavedSelectedMonths() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(LOCAL.SELECTED_MONTHS) || 'null');
-      const normalized = normalizeMonthArray(parsed);
-      if (normalized.length) return normalized;
+      const raw = localStorage.getItem(LOCAL.SELECTED_MONTHS);
+      if (raw !== null) return normalizeMonthArray(JSON.parse(raw));
     } catch (_) {}
 
     const current = getSelectedMonthIndex();
@@ -285,6 +287,7 @@
     setActive(false);
     setBlocked(true);
     clearCurrentDayCanonical();
+    clearPendingSaveDay();
     running = false;
     log('Automação parada totalmente.');
     updatePanel();
@@ -486,6 +489,56 @@
 
   function clearCurrentDayCanonical() {
     sessionStorage.removeItem(KEY.CURRENT_DAY);
+  }
+
+  function setPendingSaveDay(canonical) {
+    if (!canonical) return;
+    sessionStorage.setItem(KEY.PENDING_SAVE_DAY, String(canonical));
+    sessionStorage.setItem(KEY.PENDING_SAVE_AT, String(Date.now()));
+  }
+
+  function getPendingSaveDay() {
+    return sessionStorage.getItem(KEY.PENDING_SAVE_DAY) || '';
+  }
+
+  function clearPendingSaveDay() {
+    sessionStorage.removeItem(KEY.PENDING_SAVE_DAY);
+    sessionStorage.removeItem(KEY.PENDING_SAVE_AT);
+  }
+
+  function isDayStillPending(canonical) {
+    return !!canonical && getPendingDays().some(day => day.canonical === canonical);
+  }
+
+  function hasSaveFailureMessage() {
+    const message = getPainelMensagemText();
+    return /erro ao salvar|falha ao salvar|nao foi possivel salvar|não foi possível salvar/.test(message);
+  }
+
+  async function confirmSelectedDaySave() {
+    const canonical = getPendingSaveDay();
+    const startedAt = parseInt(sessionStorage.getItem(KEY.PENDING_SAVE_AT) || '0', 10);
+
+    if (!canonical) {
+      setPhase('click_day');
+      return true;
+    }
+
+    if (!isSiapLoadingVisible() && !isDayStillPending(canonical)) {
+      log(`Salvamento confirmado para ${formatCanonicalToBR(canonical)}.`);
+      clearPendingSaveDay();
+      clearCurrentDayCanonical();
+      setPhase('click_day');
+      return true;
+    }
+
+    if (hasSaveFailureMessage() || (startedAt && Date.now() - startedAt > TIME.SAVE_CONFIRM_TIMEOUT)) {
+      log(`O SIAP não confirmou o salvamento de ${formatCanonicalToBR(canonical)}. Vou tentar salvar novamente.`);
+      clearPendingSaveDay();
+      setPhase('save_day');
+    }
+
+    return false;
   }
 
   function skipSelectedDayByAbsenceMessage() {
@@ -843,15 +896,17 @@
     const readyToSave = await waitForSiapReady('salvar o dia selecionado');
     if (!readyToSave || !isActive() || isBlocked()) return false;
 
-    setPhase('click_day');
+    setPendingSaveDay(getCurrentDayCanonical() || canonicalFromBR(selected));
+    setPhase('confirm_save');
     const ok = triggerSave(btn);
 
     if (!ok) {
       log('Falha ao acionar o botão Salvar.');
+      clearPendingSaveDay();
+      setPhase('save_day');
       return false;
     }
 
-    clearCurrentDayCanonical();
     return true;
   }
 
@@ -939,6 +994,16 @@
           }
           return;
         }
+      }
+
+      if (phase === 'confirm_save') {
+        await confirmSelectedDaySave();
+        await sleep(TIME.LOOP_DELAY);
+        if (isActive() && !isBlocked()) {
+          running = false;
+          return processCycle();
+        }
+        return;
       }
 
       await clickNextPendingDay();
@@ -1184,10 +1249,10 @@
 
     const autoSaveMonthsFromUI = () => {
       const selected = readMonthSelectionFromUI();
-      if (!selected.length) return;
       const saved = saveSelectedMonths(selected);
       clearDoneMonths();
       clearTargetMonth();
+      clearPendingSaveDay();
       setPhase('click_day');
       updatePanel();
       return saved;
@@ -1210,6 +1275,8 @@
 
     ui.monthsNoneBtn.addEventListener('click', () => {
       writeMonthSelectionToUI([]);
+      autoSaveMonthsFromUI();
+      log('Nenhum mês selecionado. A automação não será iniciada até uma nova seleção.');
       updatePanel();
     });
 
@@ -1247,6 +1314,7 @@
       clearDoneMonths();
       clearTargetMonth();
       clearCurrentDayCanonical();
+      clearPendingSaveDay();
 
       log(`Automação iniciada manualmente. Meses ativos: ${formatMonthList(selectedMonths)}.`);
       updatePanel();
