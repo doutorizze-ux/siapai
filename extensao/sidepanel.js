@@ -2,6 +2,7 @@ const byId = (id) => document.getElementById(id);
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 let activeContext = null;
 let supportFileText = '';
+const revisaState = { catalog: null, selection: null, busy: false };
 
 function getAuth() {
   return new Promise((resolve) => chrome.storage.local.get(['auth', 'siap_saas_cache__auth'], (result) => {
@@ -295,6 +296,7 @@ async function refreshPlans() {
   try {
     const snapshot = await engine('PLANNING_SNAPSHOT', {}, 'planejamento');
     renderPlans(snapshot);
+    await refreshRevisaCatalog();
   } catch (_) {
     renderPlans({ plans: [] });
   }
@@ -308,6 +310,200 @@ async function loadSupportFile() {
   showOutput('generationOutput', `Arquivo “${file.name}” carregado para a geração.`);
 }
 
+function revisaMode() {
+  return byId('revisaBox')?.querySelector('.revisa-mode.is-active')?.dataset?.mode || 'sequencia';
+}
+
+function readRevisaSelection() {
+  const toggle = byId('revisaEnabled');
+  if (!toggle?.checked) return null;
+  const catalog = revisaState.catalog;
+  if (!catalog?.disponivel || !Array.isArray(catalog.materiais) || !catalog.materiais.length) return null;
+  const materialId = Number(byId('revisaMaterial')?.value || 0);
+  const blocoId = Number(byId('revisaBlock')?.value || 0);
+  const sequenciaId = Number(byId('revisaSequence')?.value || 0);
+  if (!materialId || !blocoId || !sequenciaId) return null;
+  const materialEntry = catalog.materiais.find((item) => Number(item?.material?.id || 0) === materialId) || null;
+  const bloco = Array.isArray(materialEntry?.blocos) ? materialEntry.blocos.find((item) => Number(item?.id || 0) === blocoId) : null;
+  const sequence = Array.isArray(bloco?.sequencias) ? bloco.sequencias.find((item) => Number(item?.id || 0) === sequenciaId) : null;
+  return {
+    materialId,
+    componenteId: Number(materialEntry?.componente?.id || 0),
+    blocoId,
+    sequenciaId,
+    sequenciaNome: sequence?.nome || '',
+    sequenciaTitulo: sequence?.titulo || '',
+    modoSelecao: revisaMode(),
+    modoUso: String(byId('revisaUsage')?.value || 'principal'),
+    atividadeInicialOrdem: Number(byId('revisaActivityFrom')?.value || 1),
+    atividadeFinalOrdem: Number(byId('revisaActivityTo')?.value || 1),
+    paginaInicial: Number(byId('revisaPageFrom')?.value || 1),
+    paginaFinal: Number(byId('revisaPageTo')?.value || 1),
+    continuar: !!byId('revisaContinue')?.checked
+  };
+}
+
+function setRevisaStatus(text, type) {
+  const status = byId('revisaStatus');
+  if (!status) return;
+  status.textContent = text;
+  status.className = `revisa-status ${['muted', 'ready', 'loading', 'error'].includes(type) ? type : 'muted'}`;
+}
+
+function renderRevisaCatalog(catalog = null) {
+  const box = byId('revisaBox');
+  if (!box) return;
+  revisaState.catalog = catalog && typeof catalog === 'object' ? catalog : { disponivel: false, materiais: [] };
+  const materialInfo = byId('revisaMaterialInfo');
+  if (!revisaState.catalog.disponivel || !Array.isArray(revisaState.catalog.materiais) || !revisaState.catalog.materiais.length) {
+    box.hidden = true;
+    const toggle = byId('revisaEnabled');
+    if (toggle) { toggle.checked = false; toggle.disabled = true; }
+    if (materialInfo) materialInfo.textContent = 'Nenhum Revisa cadastrado para esta série e disciplina.';
+    setRevisaStatus('Planejamento normal disponível.', 'muted');
+    revisaState.selection = null;
+    return;
+  }
+  box.hidden = false;
+  const toggle = byId('revisaEnabled');
+  if (toggle) { toggle.disabled = false; toggle.checked = !!revisaState.selection?.enabled; }
+  const materialSelect = byId('revisaMaterial');
+  materialSelect.innerHTML = revisaState.catalog.materiais.map((item) => {
+    const label = `${item.material.titulo}${item.material.edicao ? ` — ${item.material.edicao}` : ''}`;
+    return `<option value="${item.material.id}">${escapeHtml(label)}</option>`;
+  }).join('');
+  const materialEntry = revisaState.catalog.materiais.find((item) => Number(item.material.id) === Number(materialSelect.value || 0)) || null;
+  const blocks = Array.isArray(materialEntry?.blocos) ? materialEntry.blocos : [];
+  const blockSelect = byId('revisaBlock');
+  blockSelect.innerHTML = blocks.map((item) => `<option value="${item.id}">${escapeHtml(item.titulo)}</option>`).join('') || '<option value="">Sem blocos</option>';
+  if (materialInfo && materialEntry) {
+    const seriesLabel = String(materialEntry.material.serie_rotulo || '').trim() || `${materialEntry.material.serie_ano}º ano`;
+    materialInfo.textContent = `${materialEntry.material.titulo} • ${seriesLabel} • ${materialEntry.componente.disciplina} • ${materialEntry.material.bimestre}º bimestre/${materialEntry.material.ano_letivo}`;
+  }
+  const block = blocks.find((item) => Number(item.id) === Number(blockSelect.value || 0)) || null;
+  const allSequenceInfos = Array.isArray(materialEntry?.blocoSequences) ? materialEntry.blocoSequences : [];
+  const sequenceSelect = byId('revisaSequence');
+  sequenceSelect.innerHTML = (Array.isArray(block?.sequencias) ? block.sequencias : []).map((item) => {
+    const match = allSequenceInfos.find((si) => Number(si?.sequencia?.id || 0) === Number(item.id)) || null;
+    const from = match?.sequencia?.pagina_inicial ?? item.pagina_inicial ?? 1;
+    const to = match?.sequencia?.pagina_final ?? item.pagina_final ?? 1;
+    const title = `${item.nome}${item.titulo ? ` — ${item.titulo}` : ''}`;
+    return `<option value="${item.id}" data-pages='${JSON.stringify({ from: Number(from) || 1, to: Number(to) || 1 })}'>${escapeHtml(title)}</option>`;
+  }).join('') || '<option value="">Sem sequências</option>';
+  populateActivityControls();
+  populatePageControls();
+  blockSelect.onchange = () => { updateRevisaSequences(); saveRevisaSelection(); };
+  materialSelect.onchange = () => { updateRevisaBlocks(); saveRevisaSelection(); };
+  sequenceSelect.onchange = () => { populateActivityControls(); populatePageControls(); saveRevisaSelection(); };
+  document.querySelectorAll('.revisa-mode').forEach((btn) => {
+    btn.onclick = () => {
+      document.querySelectorAll('.revisa-mode').forEach((b) => { b.classList.remove('is-active'); b.setAttribute('aria-pressed', 'false'); });
+      btn.classList.add('is-active');
+      btn.setAttribute('aria-pressed', 'true');
+      syncRevisaRanges();
+      saveRevisaSelection();
+    };
+  });
+  byId('revisaUsage').value = revisaState.selection?.modoUso || 'principal';
+  byId('revisaContinue').checked = revisaState.selection ? !!revisaState.selection.continuar : true;
+  byId('revisaBody').hidden = !byId('revisaEnabled').checked;
+  setRevisaStatus(byId('revisaEnabled').checked ? 'Revisa pronto para planejar.' : 'Ative para usar o material nesta geração.', byId('revisaEnabled').checked ? 'ready' : 'muted');
+  syncRevisaLessonCount();
+  saveRevisaSelection();
+}
+
+function updateRevisaBlocks() {
+  const materialEntry = (revisaState.catalog?.materiais || []).find((item) => Number(item.material.id) === Number(byId('revisaMaterial').value || 0)) || null;
+  const blocks = Array.isArray(materialEntry?.blocos) ? materialEntry.blocos : [];
+  byId('revisaBlock').innerHTML = blocks.map((item) => `<option value="${item.id}">${escapeHtml(item.titulo)}</option>`).join('') || '<option value="">Sem blocos</option>';
+  updateRevisaSequences();
+}
+
+function updateRevisaSequences() {
+  const materialEntry = (revisaState.catalog?.materiais || []).find((item) => Number(item.material.id) === Number(byId('revisaMaterial').value || 0)) || null;
+  const blocks = Array.isArray(materialEntry?.blocos) ? materialEntry.blocos : [];
+  const block = blocks.find((item) => Number(item.id) === Number(byId('revisaBlock').value || 0)) || null;
+  const allSequenceInfos = Array.isArray(materialEntry?.blocoSequences) ? materialEntry.blocoSequences : [];
+  const sequenceSelect = byId('revisaSequence');
+  sequenceSelect.innerHTML = (Array.isArray(block?.sequencias) ? block.sequencias : []).map((item) => {
+    const match = allSequenceInfos.find((si) => Number(si?.sequencia?.id || 0) === Number(item.id)) || null;
+    const from = match?.sequencia?.pagina_inicial ?? item.pagina_inicial ?? 1;
+    const to = match?.sequencia?.pagina_final ?? item.pagina_final ?? 1;
+    return `<option value="${item.id}" data-pages='${JSON.stringify({ from: Number(from) || 1, to: Number(to) || 1 })}'>${escapeHtml(item.nome)}${item.titulo ? ` — ${escapeHtml(item.titulo)}` : ''}</option>`;
+  }).join('') || '<option value="">Sem sequências</option>';
+  populateActivityControls();
+  populatePageControls();
+}
+
+function populateActivityControls() {
+  const materialEntry = (revisaState.catalog?.materiais || []).find((item) => Number(item.material.id) === Number(byId('revisaMaterial').value || 0)) || null;
+  const sequenceId = Number(byId('revisaSequence').value || 0);
+  const allSequences = (Array.isArray(materialEntry?.blocoSequences) ? materialEntry.blocoSequences : [])
+    .map((si) => si?.sequencia || null).filter(Boolean);
+  const sequence = allSequences.find((item) => Number(item.id || 0) === sequenceId) || null;
+  const count = Number(sequence?.atividades_count ?? sequence?.qtd_atividades ?? sequence?.total_atividades ?? 1);
+  const safeCount = Math.max(1, Number.isFinite(count) ? count : 1);
+  const currentTo = Number(byId('revisaActivityTo')?.value || 1);
+  const toInRange = currentTo >= 1 && currentTo <= safeCount ? currentTo : safeCount;
+  const fromOptions = Array.from({ length: safeCount }, (_, i) => i + 1).map((n) => `<option value="${n}">${n}</option>`).join('');
+  const toOptions = Array.from({ length: safeCount }, (_, i) => i + 1).map((n) => `<option value="${n}"${n === toInRange ? ' selected' : ''}>${n}</option>`).join('');
+  byId('revisaActivityFrom').innerHTML = fromOptions;
+  byId('revisaActivityTo').innerHTML = toOptions;
+}
+
+function populatePageControls() {
+  const option = byId('revisaSequence')?.options?.[byId('revisaSequence')?.selectedIndex || 0];
+  let pages = { from: 1, to: 1 };
+  try { pages = JSON.parse(option?.dataset?.pages || '{}') || { from: 1, to: 1 }; } catch (_) {}
+  const from = Math.max(1, Number(pages.from) || 1);
+  const to = Math.max(from, Number(pages.to) || from);
+  const pageOptions = Array.from({ length: Math.max(1, to - from + 1) }, (_, i) => `<option value="${from + i}">${from + i}</option>`).join('');
+  byId('revisaPageFrom').innerHTML = pageOptions;
+  byId('revisaPageTo').innerHTML = pageOptions;
+  if (to > from) { byId('revisaPageTo').value = String(to); }
+}
+
+function syncRevisaRanges() {
+  const mode = revisaMode();
+  byId('revisaActivityRange').hidden = mode !== 'atividades';
+  byId('revisaPageRange').hidden = mode !== 'paginas';
+}
+
+function syncRevisaLessonCount() {
+  const el = byId('revisaQtd');
+  if (el) el.value = byId('lessonCount')?.value || 1;
+}
+
+function saveRevisaSelection() {
+  const box = byId('revisaBox');
+  if (box?.hidden) { revisaState.selection = null; return; }
+  const selection = readRevisaSelection();
+  if (selection) {
+    revisaState.selection = { enabled: true, ...selection, contextKey: revisaState.catalog?.contextKey || '' };
+    setRevisaStatus('Revisa pronto para planejar.', 'ready');
+  } else {
+    revisaState.selection = { enabled: !!byId('revisaEnabled')?.checked, contextKey: revisaState.catalog?.contextKey || '' };
+    setRevisaStatus(byId('revisaEnabled')?.checked ? 'Selecione o bloco e a sequência de atividades do Revisa.' : 'Ative para usar o material nesta geração.', 'muted');
+  }
+}
+
+async function refreshRevisaCatalog() {
+  const box = byId('revisaBox');
+  if (!box) return;
+  if (revisaState.busy) return;
+  try {
+    revisaState.busy = true;
+    setRevisaStatus('Consultando materiais disponíveis…', 'loading');
+    const catalog = await engine('REVISA_CATALOG', {}, 'planejamento', 30000);
+    renderRevisaCatalog(catalog);
+  } catch (error) {
+    setRevisaStatus('Não foi possível carregar o Revisa.', 'error');
+    console.warn('[SiapAI] Catálogo Revisa falhou:', error?.message || error);
+  } finally {
+    revisaState.busy = false;
+  }
+}
+
 async function generatePlan() {
   const button = byId('generatePlan');
   const auth = await refreshLicense();
@@ -317,7 +513,11 @@ async function generatePlan() {
     await loadSupportFile();
     const count = Number(byId('lessonCount').value || 1);
     const instruction = [byId('planningRequest').value.trim(), supportFileText.trim()].filter(Boolean).join('\n\n');
-    const options = { count, instruction, supportText: supportFileText, customContentEnabled: byId('customContent').checked, replicateToOtherClass: byId('replicateClass').checked };
+    const revisaConfig = readRevisaSelection();
+    if (!byId('revisaBox')?.hidden && byId('revisaEnabled')?.checked && !revisaConfig) {
+      throw new Error('O Planejar com Revisa está ativado, mas o bloco e a sequência de atividades precisam ser selecionados.');
+    }
+    const options = { count, instruction, supportText: supportFileText, customContentEnabled: byId('customContent').checked, replicateToOtherClass: byId('replicateClass').checked, revisaConfig };
     const prepared = await engine('PLANNING_PREPARE', options, 'planejamento', 30000);
     setBusy(button, true, 'Gerando com IA…');
     showOutput('generationOutput', `Gerando ${count} aula(s) para ${prepared.context?.disciplina || 'a turma aberta'}…`);

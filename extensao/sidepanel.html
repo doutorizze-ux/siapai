@@ -44,7 +44,27 @@
       <p class="help">Inclui um texto pronto para o campo livre de conteúdo do SIAP.</p>
       <label class="check"><input id="replicateClass" type="checkbox"> <span>Replicar aula para outra turma</span></label>
       <p class="help">A opção só é executada quando a turma de destino estiver pronta no SIAP.</p>
-      <div class="button-grid planning-actions">
+      <div id="revisaBox" class="subsection revisa-box" hidden>
+  <div class="revisa-header"><div class="revisa-title"><span aria-hidden="true">▤</span> Planejar com Revisa</div><label class="revisa-toggle" title="Ativar Planejar com Revisa"><input id="revisaEnabled" type="checkbox"><span></span></label></div>
+  <div id="revisaMaterialInfo">Consultando material da turma…</div>
+  <select id="revisaMaterial" hidden></select>
+  <div id="revisaBody" hidden>
+    <label for="revisaBlock">Bloco do material</label><select id="revisaBlock"></select>
+    <label for="revisaSequence">Sequência de atividades</label><select id="revisaSequence"></select>
+    <div class="revisa-modes" role="group" aria-label="Forma de seleção">
+      <button type="button" class="revisa-mode is-active" data-mode="sequencia" aria-pressed="true">Sequência</button>
+      <button type="button" class="revisa-mode" data-mode="atividades" aria-pressed="false">Atividades</button>
+      <button type="button" class="revisa-mode" data-mode="paginas" aria-pressed="false">Páginas</button>
+    </div>
+    <div id="revisaActivityRange" class="revisa-range" hidden><label>Da atividade <select id="revisaActivityFrom"></select></label><span>até</span><label><select id="revisaActivityTo"></select></label></div>
+    <div id="revisaPageRange" class="revisa-range" hidden><label>Da página <select id="revisaPageFrom"></select></label><span>até</span><label><select id="revisaPageTo"></select></label></div>
+    <label for="revisaUsage">Como usar o material</label><select id="revisaUsage"><option value="principal">Sequência principal</option><option value="apoio">Como apoio</option><option value="combinado">Revisa + orientação do professor</option></select>
+    <div class="revisa-distribute">Distribuir em <input id="revisaQtd" type="number" value="1" readonly> aula(s)</div>
+    <label class="check"><input id="revisaContinue" type="checkbox" checked> <span>Continuar de onde a turma parou</span></label>
+  </div>
+  <div id="revisaStatus" class="revisa-status muted">Consultando materiais disponíveis…</div>
+</div>
+<div class="button-grid planning-actions">
         <button id="generatePlan" class="primary" type="button">Gerar planejamentos</button>
         <button id="applyNext" class="secondary" type="button" disabled>Aplicar próxima aula</button>
         <button id="applyAll" class="secondary" type="button" disabled>Aplicar todas</button>
@@ -91,7 +111,7 @@
       <div id="peiOutput" class="output" aria-live="polite">Selecione os meses permitidos e abra a tela de PEI para gerar e salvar o período exibido no SIAP.</div>
     </section>
 
-    <footer><span>O SiapAI não solicita a senha do SIAP.</span><small>v5.9.5 · Painel lateral nativo do Chrome</small></footer>
+    <footer><span>O SiapAI não solicita a senha do SIAP.</span><small>v5.9.6 · Painel lateral nativo do Chrome</small></footer>
   </main>
   <script src="sidepanel.js"></script>
 </body>

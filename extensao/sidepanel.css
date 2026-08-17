@@ -41,3 +41,27 @@ footer { margin:16px 2px 4px; color:#6d897d; font-size:10px; line-height:1.4; } 
 
 .login-panel{margin:0 0 14px;padding:13px;border:1px solid #c9dfd3;border-radius:12px;background:#f7fcf9}.login-panel strong{display:block;color:#1f5d45;font-size:13px}.login-panel p{margin:5px 0 10px;color:#5b766a;font-size:11px;line-height:1.4}.login-panel label{display:block;margin:0 0 5px;font-size:11px;color:#466158;font-weight:750}.login-panel input{margin:0 0 8px}.login-panel .primary{margin:0}
 .content-material-heading{margin-top:14px}.content-help{margin:4px 0 7px!important;font-size:11px!important}.material-list{display:grid;gap:6px;max-height:210px;overflow:auto;padding:8px;border:1px solid #d9e6e0;border-radius:10px;background:#fcfefd}.material-list em{font-size:11px;color:#6b877b}.material-option{display:flex;align-items:flex-start;gap:7px;margin:0;padding:7px;border-radius:7px;color:#36594b;font-size:11px;line-height:1.35;cursor:pointer}.material-option:hover{background:#effaf5}.material-option input{width:14px;height:14px;margin:0;padding:0;flex:0 0 auto;accent-color:#087b56}.material-option:has(input:checked){background:#e8f7ef;color:#076449;font-weight:750}
+
+.revisa-box{border:1px solid #e4ece8;border-radius:10px;background:#fcfefd;margin-top:12px;padding:10px}
+.revisa-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.revisa-title{font-weight:700;font-size:12px;display:flex;align-items:center;gap:5px;color:#0a4a36}
+.revisa-toggle{position:relative;display:inline-block;width:32px;height:18px}
+.revisa-toggle input{opacity:0;width:0;height:0}
+.revisa-toggle span{position:absolute;cursor:pointer;inset:0;background:#cfd9d5;transition:.2s;border-radius:18px}
+.revisa-toggle span::before{position:absolute;content:"";height:12px;width:12px;left:3px;bottom:3px;background:#fff;transition:.2s;border-radius:50%}
+.revisa-toggle input:checked+span{background:#087b56}
+.revisa-toggle input:checked+span::before{transform:translateX(14px)}
+.revisa-toggle input:disabled+span{opacity:.5;cursor:not-allowed}
+.revisa-box select{width:100%;margin-bottom:7px;border:1px solid #cfe0d8;border-radius:8px;padding:7px;font:inherit;background:#fff}
+.revisa-modes{display:flex;gap:4px;margin-bottom:6px}
+.revisa-mode{flex:1;border:1px solid #cfe0d8;background:#fff;border-radius:8px;padding:5px 0;font-size:11px;font-weight:700;cursor:pointer;color:#36594b}
+.revisa-mode.is-active{background:#087b56;color:#fff;border-color:#087b56}
+.revisa-range{display:flex;align-items:center;gap:5px;margin-bottom:6px;font-size:11px;color:#36594b}
+.revisa-range select{margin-bottom:0;flex:1}
+.revisa-distribute{margin:4px 0 7px;font-size:11px;color:#36594b}
+.revisa-distribute input{width:44px;border:1px solid #cfe0d8;border-radius:8px;padding:5px;font:inherit;background:#eef7f2;text-align:center}
+.revisa-status{font-size:10px;margin-top:2px;line-height:1.35}
+.revisa-status.muted{color:#6b877b}
+.revisa-status.ready{color:#087b56;font-weight:700}
+.revisa-status.loading{color:#b45309}
+.revisa-status.error{color:#9d3737}

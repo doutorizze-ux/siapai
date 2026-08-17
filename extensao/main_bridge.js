@@ -56,12 +56,11 @@
     window.__SIAP_SAAS_HEADLESS__ = true;
     const ui = window.SIAPUI;
     if (!ui) return;
-    [
-      'buildPanel', 'renderPreview', 'renderSavedPlanMatch', 'openPlanEditor', 'closePlanEditor',
+        [ 'buildPanel', 'renderPreview', 'renderSavedPlanMatch', 'openPlanEditor', 'closePlanEditor',
       'updateGenerationProgress', 'startGenerationProgress', 'setGenerationProgress',
       'completeGenerationProgress', 'failGenerationProgress', 'refreshRevisaCatalog'
     ].forEach((name) => { ui[name] = noOp; });
-    ui.getRevisaGenerationConfig = () => null;
+    ui.getRevisaGenerationConfig = () => readRevisaGenerationConfig();
   }
 
   function getPlanningContext() {
@@ -70,6 +69,64 @@
       throw new Error('Abra a edição de uma aula e aguarde o SIAP identificar a turma e a disciplina.');
     }
     return context;
+  }
+
+  const REVISa_CONFIG_KEY = 'siap_planejamento_revisa_config_v1';
+
+  function readRevisaGenerationConfig() {
+    try {
+      const raw = sessionStorage.getItem(REVISa_CONFIG_KEY);
+      const config = raw ? JSON.parse(raw) : null;
+      if (!config?.enabled) return null;
+      return config;
+    } catch (_) { return null; }
+  }
+
+  function persistRevisaConfig(config) {
+    try {
+      if (config && Object.keys(config).length) {
+        sessionStorage.setItem(REVISa_CONFIG_KEY, JSON.stringify({ enabled: true, ...config }));
+        const state = window.SIAPState || {};
+        state.revisaEnabled = true;
+        state.revisaSelection = { enabled: true, ...config, contextKey: '' };
+      } else {
+        sessionStorage.removeItem(REVISa_CONFIG_KEY);
+        const state = window.SIAPState || {};
+        state.revisaEnabled = false;
+        state.revisaSelection = null;
+      }
+    } catch (_) {}
+  }
+
+  function attachRevisaMetadataToPlans(plans, revisaConfig, revisaContext = null) {
+    if (!Array.isArray(plans) || !revisaConfig) return plans;
+    const referenceInstruction = window.SIAPApi?.getRevisaReferenceInstruction?.(
+      revisaContext && typeof revisaContext === 'object'
+        ? { atividades: Array.isArray(revisaContext.atividades) ? revisaContext.atividades : [], ...revisaContext }
+        : { materialId: revisaConfig.materialId, blocoId: revisaConfig.blocoId, sequenciaId: revisaConfig.sequenciaId }
+    );
+    const revisaContextSafe = revisaContext && typeof revisaContext === 'object' ? revisaContext : {};
+    const sequenciaInfo = Array.isArray(revisaConfig.sequenciaInfo) ? revisaConfig.sequenciaInfo : [];
+    const atividades = Array.isArray(revisaConfig.atividades) ? revisaConfig.atividades : [];
+    const paginaInicial = Number(revisaConfig.paginaInicial) || 1;
+    const paginaFinal = Number(revisaConfig.paginaFinal) || 1;
+    return plans.map((plan) => ({
+      ...plan,
+      revisa: {
+        enabled: true,
+        materialId: revisaConfig.materialId,
+        componenteId: revisaConfig.componenteId || 0,
+        blocoId: revisaConfig.blocoId,
+        sequenciaId: revisaConfig.sequenciaId,
+        sequenciaNome: String(revisaConfig.sequenciaNome || ''),
+        sequenciaTitulo: String(revisaConfig.sequenciaTitulo || ''),
+        atividadeIds: Array.isArray(atividades) ? atividades : (Array.isArray(revisaContextSafe.atividades) ? revisaContextSafe.atividades.map((item) => Number(item?.id || item?.ordem || 0)).filter(Boolean) : []),
+        paginas: { from: paginaInicial, to: paginaFinal },
+        modoSelecao: String(revisaConfig.modoSelecao || 'sequencia'),
+        modoUso: String(revisaConfig.modoUso || 'principal')
+      },
+      metodologia: referenceInstruction ? `${plan?.metodologia || ''}\n\n${referenceInstruction}`.trim() : (plan?.metodologia || '')
+    }));
   }
 
   function getPlanningSnapshot() {
@@ -144,26 +201,53 @@
     if (command === 'PLANNING_PREPARE') {
       const context = getPlanningContext();
       const count = Math.max(1, Math.min(20, Number(payload?.count) || 1));
+      const revisaConfig = payload?.revisaConfig && typeof payload.revisaConfig === 'object' ? payload.revisaConfig : null;
       const instruction = String(payload?.instruction || '').trim() ||
         'Sem instruções específicas. Gere os planejamentos utilizando apenas os conteúdos e habilidades disponíveis na árvore do SIAP.';
+      let revisaContext = null;
+      let referenceInstruction = '';
+      if (revisaConfig && window.SIAPApi?.prepareRevisaSelection) {
+        try {
+          revisaContext = await window.SIAPApi.prepareRevisaSelection({
+            materialId: revisaConfig.materialId,
+            componenteId: revisaConfig.componenteId,
+            blocoId: revisaConfig.blocoId,
+            sequenciaId: revisaConfig.sequenciaId,
+            modoSelecao: revisaConfig.modoSelecao || 'sequencia',
+            atividadeInicialOrdem: revisaConfig.atividadeInicialOrdem,
+            atividadeFinalOrdem: revisaConfig.atividadeFinalOrdem,
+            paginaInicial: revisaConfig.paginaInicial,
+            paginaFinal: revisaConfig.paginaFinal,
+            continuar: !!revisaConfig.continuar,
+            qtdAulas: count,
+            modoUso: revisaConfig.modoUso || 'principal'
+          }, context, count);
+          referenceInstruction = window.SIAPApi?.getRevisaReferenceInstruction?.(revisaContext) || '';
+        } catch (error) {
+          throw new Error(`Não foi possível preparar o material Revisa: ${error?.message || 'falha na consulta'}.`);
+        }
+      }
       const generationOptions = {
         customContentEnabled: !!payload?.customContentEnabled,
         replicateToOtherClass: !!payload?.replicateToOtherClass,
-        revisaEnabled: false
+        revisaEnabled: !!revisaConfig
       };
       const apiContext = { ...context, generationOptions, instructionResolution: { habilidades: [], conteudos: [] } };
-      const prompt = window.SIAPApi?.buildPrompt?.(count, instruction, apiContext);
+      const combinedInstruction = referenceInstruction ? `${instruction}\n\n${referenceInstruction}`.trim() : instruction;
+      const prompt = window.SIAPApi?.buildPrompt?.(count, combinedInstruction, apiContext);
       if (!prompt) throw new Error('Não foi possível preparar o planejamento para a turma aberta.');
-      return { prompt, count, context: { disciplina: context.disciplina, turma: context.turma, serieAno: context.serieAno, numeroAula: context.numeroAula } };
+      persistRevisaConfig(revisaConfig ? { ...revisaConfig, modoUso: revisaContext?.modo_uso || revisaConfig.modoUso || 'principal' } : null);
+      return { prompt, count, context: { disciplina: context.disciplina, turma: context.turma, serieAno: context.serieAno, numeroAula: context.numeroAula }, revisaConfig, revisaContext };
     }
     if (command === 'PLANNING_STORE') {
       const context = getPlanningContext();
       const result = parseProviderResponse(payload?.providerResponse);
       const requestedCount = Math.max(1, Math.min(20, Number(payload?.count) || 1));
+      const revisaConfig = payload?.revisaConfig && typeof payload.revisaConfig === 'object' ? payload.revisaConfig : null;
       const generationOptions = {
         customContentEnabled: !!payload?.customContentEnabled,
         replicateToOtherClass: !!payload?.replicateToOtherClass,
-        revisaEnabled: false
+        revisaEnabled: !!revisaConfig
       };
       const apiContext = { ...context, generationOptions };
       const valid = window.SIAPApi?.validateAndFixPlan ? window.SIAPApi.validateAndFixPlan(result, apiContext) : result;
@@ -172,6 +256,11 @@
       // padrão. O painel só pode disponibilizar exatamente a quantidade que o
       // professor escolheu, inclusive no caso de apenas uma aula.
       valid.aulas = valid.aulas.slice(0, requestedCount);
+      if (revisaConfig) {
+        const revisaContextPayload = payload?.revisaContext && typeof payload.revisaContext === 'object' ? payload.revisaContext : null;
+        valid.aulas = attachRevisaMetadataToPlans(valid.aulas, revisaConfig, revisaContextPayload);
+      }
+      persistRevisaConfig(revisaConfig);
       const state = window.SIAPState;
       state.generatedPlans = valid.aulas;
       state.currentPlanIndex = 0;
@@ -190,6 +279,18 @@
       return getPlanningSnapshot();
     }
     if (command === 'PLANNING_SNAPSHOT') return { ...getPlanningSnapshot(), savedPlans: getSavedPlanLibrary() };
+    if (command === 'REVISA_CATALOG') {
+      assertRuntimeLicense('REVISA_CATALOG');
+      const context = getPlanningContext();
+      if (!window.SIAPApi?.loadRevisaCatalog) throw new Error('O catálogo Revisa não está disponível nesta página do SIAP.');
+      const catalog = await window.SIAPApi.loadRevisaCatalog(context);
+      const result = catalog && typeof catalog === 'object' ? catalog : { disponivel: false, materiais: [] };
+      if (!result.disponivel || !Array.isArray(result.materiais)) {
+        return { disponivel: false, materiais: [], contextKey: '' };
+      }
+      const contextKey = `${String(context.serieAno || '')}|${String(context.disciplina || '')}`.toLowerCase();
+      return { ...result, contextKey };
+    }
     if (command === 'PLANNING_APPLY_NEXT') {
       await window.SIAPExecutor?.applyNextPlan?.();
       return getPlanningSnapshot();
@@ -211,6 +312,18 @@
       state.generatedPlansContext = {
         disciplina: item.disciplina || '', turma: item.turma || '', serieAno: item.serieAno || '', numeroAulaInicial: item.numeroAulaInicial || ''
       };
+      const savedRevisa = Array.isArray(item.plans) && item.plans[0]?.revisa ? item.plans[0].revisa : null;
+      const savedRevisaConfig = savedRevisa
+        ? {
+            materialId: savedRevisa.materialId, componenteId: savedRevisa.componenteId || 0,
+            blocoId: savedRevisa.blocoId, sequenciaId: savedRevisa.sequenciaId,
+            sequenciaNome: savedRevisa.sequenciaNome || '', sequenciaTitulo: savedRevisa.sequenciaTitulo || '',
+            modoSelecao: savedRevisa.modoSelecao || 'sequencia', modoUso: savedRevisa.modoUso || 'principal',
+            atividadeInicialOrdem: 1, atividadeFinalOrdem: 1, paginaInicial: savedRevisa.paginas?.from || 1,
+            paginaFinal: savedRevisa.paginas?.to || 1, continuar: !!savedRevisa.continuar
+          }
+        : null;
+      persistRevisaConfig(savedRevisaConfig);
       persistPlanningState();
       return getPlanningSnapshot();
     }
