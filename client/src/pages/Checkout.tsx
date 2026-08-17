@@ -35,6 +35,7 @@ export default function Checkout() {
   const [status, setStatus] = useState<Status>("form");
   const [paymentId, setPaymentId] = useState("");
   const [pixCode, setPixCode] = useState("");
+  const [pixImage, setPixImage] = useState("");
   const [value, setValue] = useState(0);
   const [payStatus, setPayStatus] = useState("");
   const pollRef = useRef<AbortController | null>(null);
@@ -62,6 +63,7 @@ export default function Checkout() {
       const result = await createCheckout.mutateAsync({ email, name, cpfCnpj: cpf });
       setPaymentId(result.paymentId);
       setPixCode(result.pixQrCode ?? "");
+      setPixImage(result.pixQrImage ?? "");
       setValue(result.value);
       setStatus("waiting");
       toast.info("Pix gerado! Pague pelo app do seu banco.");
@@ -87,9 +89,29 @@ export default function Checkout() {
   };
 
   const copyPix = async () => {
-    if (!pixCode) return;
-    await navigator.clipboard.writeText(pixCode);
-    toast.success("Código Pix copiado!");
+    if (!pixCode) {
+      toast.error("O código Pix ainda não foi disponibilizado. Gere uma nova cobrança.");
+      return;
+    }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(pixCode);
+      } else {
+        const input = document.createElement("textarea");
+        input.value = pixCode;
+        input.setAttribute("readonly", "");
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.select();
+        const copied = document.execCommand("copy");
+        document.body.removeChild(input);
+        if (!copied) throw new Error("Falha ao copiar");
+      }
+      toast.success("Código Pix copiado!");
+    } catch {
+      toast.error("Não foi possível copiar automaticamente. Tente novamente.");
+    }
   };
 
   if (!product) {
@@ -187,12 +209,16 @@ export default function Checkout() {
             </div>
             <div className="rounded-2xl border bg-card p-6 flex flex-col items-center gap-4 text-center">
               {pixCode ? (
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(pixCode)}`} alt="QR Code Pix" className="rounded-xl border" />
+                <img
+                  src={pixImage ? `data:image/png;base64,${pixImage}` : `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(pixCode)}`}
+                  alt="QR Code Pix"
+                  className="h-60 w-60 rounded-xl border bg-white p-2"
+                />
               ) : (
                 <QrCode className="h-24 w-24 text-muted-foreground" />
               )}
               <p className="text-sm text-muted-foreground">Valor: <strong className="text-foreground">R$ {value.toFixed(2).replace(".", ",")}</strong></p>
-              <Button variant="outline" onClick={copyPix} className="w-full gap-2">
+              <Button variant="outline" onClick={copyPix} disabled={!pixCode} className="w-full gap-2">
                 <Copy className="h-4 w-4" /> Copiar código Pix
               </Button>
             </div>
@@ -229,5 +255,4 @@ export default function Checkout() {
     </div>
   );
 }
-
 

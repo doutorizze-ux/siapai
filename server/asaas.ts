@@ -35,6 +35,14 @@ export interface AsaasPayment {
   externalReference?: string;
 }
 
+export interface AsaasPixQrCode {
+  /** Código Pix no formato copia-e-cola (EMV). */
+  payload: string;
+  /** Imagem PNG do QR Code em Base64, entregue pelo próprio Asaas. */
+  encodedImage?: string;
+  expirationDate?: string;
+}
+
 async function asaasRequest(path: string, options: RequestInit = {}): Promise<unknown> {
   // Se ASAAS_API_URL for configurada (ex: api.asaas.com), usar essa URL diretamente.
   // Caso contrário, fallback para sandbox.
@@ -114,6 +122,22 @@ export async function asaasCreatePixPayment(input: CreatePixPaymentInput): Promi
 export async function asaasGetPayment(paymentId: string): Promise<AsaasPayment> {
   const body = await asaasRequest(`/payments/${paymentId}`);
   return body as AsaasPayment;
+}
+
+/**
+ * O endpoint de criação da cobrança não entrega o payload Pix. Ele precisa ser
+ * buscado separadamente no endpoint oficial /payments/{id}/pixQrCode.
+ */
+export async function asaasGetPixQrCode(paymentId: string): Promise<AsaasPixQrCode> {
+  const body = (await asaasRequest(`/payments/${paymentId}/pixQrCode`)) as Partial<AsaasPixQrCode>;
+  if (!body.payload || typeof body.payload !== "string") {
+    throw new Error("O Asaas não retornou o código Pix da cobrança.");
+  }
+  return {
+    payload: body.payload,
+    encodedImage: body.encodedImage,
+    expirationDate: body.expirationDate,
+  };
 }
 
 export function formatCentsToBRL(cents: number): string {

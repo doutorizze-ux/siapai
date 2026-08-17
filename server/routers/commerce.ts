@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { generateLessonPlans, generatePei } from "../llm";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../_core/trpc";
-import { asaasCreateCustomer, asaasCreatePixPayment, asaasGetCustomerByEmail, asaasGetPayment, formatCentsToBRL } from "../asaas";
+import { asaasCreateCustomer, asaasCreatePixPayment, asaasGetCustomerByEmail, asaasGetPayment, asaasGetPixQrCode, formatCentsToBRL } from "../asaas";
 import {
   activateLicenseByPayment,
   createLicense,
@@ -120,9 +120,11 @@ export const commerceRouter = router({
         try {
           const payment = await asaasGetPayment(pending.paymentId);
           if (payment.status === "PENDING" || payment.status === "RECEIVED") {
+            const pix = await asaasGetPixQrCode(payment.id);
             return {
               paymentId: payment.id,
-              pixQrCode: payment.pixQrCode ?? "",
+              pixQrCode: pix.payload,
+              pixQrImage: pix.encodedImage ?? "",
               value: payment.value,
               status: payment.status,
               alreadyExists: true,
@@ -156,9 +158,11 @@ export const commerceRouter = router({
           description: `${settings.name} - Acesso até 31/12`,
         });
         await updateLicense(license.id, { paymentId: payment.id, customerId: customer.id });
+        const pix = await asaasGetPixQrCode(payment.id);
         return {
           paymentId: payment.id,
-          pixQrCode: payment.pixQrCode ?? "",
+          pixQrCode: pix.payload,
+          pixQrImage: pix.encodedImage ?? "",
           value: payment.value,
           status: payment.status,
           alreadyExists: false,
