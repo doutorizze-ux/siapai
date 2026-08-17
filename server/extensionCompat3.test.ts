@@ -19,6 +19,23 @@ vi.mock("./llm", () => ({
   generatePei: vi.fn(),
 }));
 
+vi.mock("./db.licenses", () => ({
+  getLicenseByCode: vi.fn(),
+  getLicensesByEmail: vi.fn(async (email: string) => [{
+    id: 1,
+    email,
+    active: 1,
+    expiresAt: new Date("2099-12-31T00:00:00Z"),
+  }]),
+  isLicenseActive: vi.fn(() => true),
+  updateLicense: vi.fn(),
+}));
+
+vi.mock("./db.revisa", () => ({
+  getCompletedRevisaActivities: vi.fn(async () => []),
+  registerCompletedRevisaActivities: vi.fn(async () => 1),
+}));
+
 let server: Server;
 let baseUrl: string;
 
@@ -68,5 +85,23 @@ describe("compatibilidade da geração da extensão SiapAI", () => {
       ],
     });
     expect(generateLessonPlans).toHaveBeenCalledWith(expect.objectContaining({ lessonCount: 2 }));
+  });
+
+  it("entrega o catálogo público Revisa no contrato consumido pelo painel", async () => {
+    const token = jwt.sign({ email: "professora@siapai.com.br", licenseId: 1 }, process.env.SIAPAI_JWT_SECRET_FIXED || process.env.JWT_SECRET || "siapai-dev-secret");
+    const response = await fetch(`${baseUrl}/api/revisa.php`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        action: "catalogo",
+        contexto: { serie: "9º Ano", disciplina: "LÍNGUA PORTUGUESA", bimestre: 3 },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.ok).toBe(true);
+    expect(body.data.disponivel).toBe(true);
+    expect(body.data.materiais[0].blocos[0].titulo).toBe("Narrativa de Enigma");
   });
 });

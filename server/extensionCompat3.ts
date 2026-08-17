@@ -19,6 +19,8 @@ import { getLicenseByCode, getLicensesByEmail, isLicenseActive, updateLicense } 
 import { generateLessonPlans, generatePei } from "./llm";
 import { invokeLLM } from "./_core/llm";
 import { nanoid } from "nanoid";
+import { getCompletedRevisaActivities, registerCompletedRevisaActivities } from "./db.revisa";
+import { getPublicRevisaCatalog, getPublicRevisaExcerpt, isPublicRevisaMaterial } from "./revisaCatalog";
 
 // Chave fixa e estável usada para assinar os tokens da extensão — mantida ao migrar para o Coolify
 // para que sessões e tokens existentes continuem válidos.
@@ -373,21 +375,64 @@ export function registerExtension3Routes(expressRouter: Router): void {
     }
   });
 
-  /**
-   * POST /revisa.php
-   * Revisa: reescreve o conteúdo por IA para torná-lo compatível com a série/bimestre.
-   */
+  /** POST /revisa.php — catálogo próprio, trecho, progresso e revisão de texto. */
   expressRouter.post("/api/revisa.php", async (req: Request, res: Response) => {
     const decoded = await authorizeBearer(req, res);
     if (!decoded) return;
     try {
       const body = (req.body || {}) as {
+        action?: string;
         contexto?: { serie?: string; disciplina?: string; bimestre?: number; turma?: string };
         texto?: string;
         conteudo?: string;
+        material_id?: number;
+        componente_id?: number;
+        bloco_id?: number;
+        sequencia_id?: number;
+        modo_selecao?: string;
+        atividade_inicial_ordem?: number;
+        atividade_final_ordem?: number;
+        pagina_inicial?: number;
+        pagina_final?: number;
+        continuar?: boolean;
+        atividade_ids?: number[];
+        numero_aula?: string;
         [k: string]: unknown;
       };
       const ctx = body.contexto || {};
+      const action = String(body.action || "revisar_texto");
+      const loadCompleted = (sequenceId: number) => getCompletedRevisaActivities(
+        decoded.licenseId,
+        Number(body.material_id || 9003001),
+        Number(body.componente_id || 90031),
+        sequenceId,
+      );
+
+      if (action === "catalogo") {
+        const data = await getPublicRevisaCatalog(ctx, async (sequenceId) => getCompletedRevisaActivities(decoded.licenseId, 9003001, 90031, sequenceId));
+        return res.json({ ok: true, data });
+      }
+      if (action === "trecho") {
+        const data = await getPublicRevisaExcerpt(ctx, body, loadCompleted);
+        return res.json({ ok: true, data });
+      }
+      if (action === "registrar_progresso") {
+        const materialId = Number(body.material_id || 0);
+        const componentId = Number(body.componente_id || 0);
+        const sequenceId = Number(body.sequencia_id || 0);
+        if (!isPublicRevisaMaterial(materialId, componentId) || !sequenceId) {
+          return res.status(400).json({ ok: false, error: "selecao_invalida", message: "O material Revisa informado não é válido." });
+        }
+        const registradas = await registerCompletedRevisaActivities({
+          licenseId: decoded.licenseId,
+          materialId,
+          componentId,
+          sequenceId,
+          activityIds: Array.isArray(body.atividade_ids) ? body.atividade_ids : [],
+          lessonNumber: body.numero_aula,
+        });
+        return res.json({ ok: true, data: { registradas } });
+      }
       const texto = String(body.texto || body.conteudo || "");
       if (!texto.trim()) {
         return res.json({ ok: false, error: "conteudo_vazio", message: "Nenhum conteúdo para revisar." });

@@ -44,8 +44,7 @@
       <p class="help">Inclui um texto pronto para o campo livre de conteúdo do SIAP.</p>
       <label class="check"><input id="replicateClass" type="checkbox"> <span>Replicar aula para outra turma</span></label>
       <p class="help">A opção só é executada quando a turma de destino estiver pronta no SIAP.</p>
-      <!-- Revisa permanece oculto até que o catálogo real esteja disponível no backend. -->
-      <div id="revisaBox" class="subsection revisa-box" hidden>
+      <div id="revisaBox" class="subsection revisa-box">
   <div class="revisa-header"><div class="revisa-title"><span aria-hidden="true">▤</span> Planejar com Revisa</div><label class="revisa-toggle" title="Ativar Planejar com Revisa"><input id="revisaEnabled" type="checkbox"><span></span></label></div>
   <div id="revisaMaterialInfo">Consultando material da turma…</div>
   <select id="revisaMaterial" hidden></select>
@@ -63,7 +62,7 @@
     <div class="revisa-distribute">Distribuir em <input id="revisaQtd" type="number" value="1" readonly> aula(s)</div>
     <label class="check"><input id="revisaContinue" type="checkbox" checked> <span>Continuar de onde a turma parou</span></label>
   </div>
-  <div id="revisaStatus" class="revisa-status muted">Consultando materiais disponíveis…</div>
+  <div id="revisaStatus" class="revisa-status muted">Consultando materiais Revisa disponíveis para a turma…</div>
 </div>
 <div class="button-grid planning-actions">
         <button id="generatePlan" class="primary" type="button">Gerar planejamentos</button>
@@ -112,7 +111,7 @@
       <div id="peiOutput" class="output" aria-live="polite">Selecione os meses permitidos e abra a tela de PEI para gerar e salvar o período exibido no SIAP.</div>
     </section>
 
-    <footer><span>O SiapAI não solicita a senha do SIAP.</span><small>v5.9.8 · Painel lateral nativo do Chrome</small></footer>
+    <footer><span>O SiapAI não solicita a senha do SIAP.</span><small>v5.9.9 · Painel lateral nativo do Chrome</small></footer>
   </main>
   <script src="sidepanel.js"></script>
 </body>

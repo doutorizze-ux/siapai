@@ -3,7 +3,7 @@ const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', '
 let activeContext = null;
 let supportFileText = '';
 let planningGenerationInFlight = false;
-const revisaFeatureEnabled = false;
+const revisaFeatureEnabled = true;
 const revisaState = { catalog: null, selection: null, busy: false };
 
 function getAuth() {
@@ -549,9 +549,10 @@ async function generatePlan() {
     await loadSupportFile();
     const count = Number(byId('lessonCount').value || 1);
     const instruction = [byId('planningRequest').value.trim(), supportFileText.trim()].filter(Boolean).join('\n\n');
-    // O backend atual não contém o catálogo Revisa. Enquanto ele não existir,
-    // o Planejamento segue apenas com o fluxo normal, sem configuração parcial.
-    const revisaConfig = null;
+    const revisaConfig = readRevisaSelection();
+    if (byId('revisaEnabled')?.checked && !revisaConfig) {
+      throw new Error('Selecione o material, o bloco e a sequência do Revisa antes de gerar.');
+    }
     const options = { count, instruction, supportText: supportFileText, customContentEnabled: byId('customContent').checked, replicateToOtherClass: byId('replicateClass').checked, revisaConfig };
     const prepared = await engine('PLANNING_PREPARE', options, 'planejamento', 30000);
     setBusy(button, true, 'Gerando com IA…');
@@ -659,7 +660,6 @@ function initTabs() {
 createMonthGrid('frequencyMonths');
 createMonthGrid('contentMonths');
 createMonthGrid('peiMonths');
-disableRevisaFeature();
 byId('generatePlan').addEventListener('click', generatePlan);
 byId('applyNext').addEventListener('click', () => runPlanning('PLANNING_APPLY_NEXT', 'Próxima aula enviada para os campos nativos do SIAP. Revise antes de salvar.'));
 byId('applyAll').addEventListener('click', () => runPlanning('PLANNING_APPLY_ALL', 'Aplicação automática iniciada. Mantenha a tela do SIAP aberta.'));
@@ -679,8 +679,17 @@ byId('refreshContentMaterials').addEventListener('click', refreshContentMaterial
 byId('generatePei').addEventListener('click', generatePei);
 byId('validateLicense').addEventListener('click', validateLicenseEmail);
 initTabs();
-Promise.all([refreshLicense(), refreshContext()]).then(() => refreshPlans());
-chrome.tabs.onActivated.addListener(() => refreshContext().then(() => refreshPlans()).catch(() => {}));
+Promise.all([refreshLicense(), refreshContext()]).then(() => {
+  refreshPlans();
+  refreshRevisaCatalog();
+});
+chrome.tabs.onActivated.addListener(() => refreshContext().then(() => {
+  refreshPlans();
+  refreshRevisaCatalog();
+}).catch(() => {}));
 chrome.tabs.onUpdated.addListener((_id, changeInfo) => {
-  if (changeInfo.status === 'complete') refreshContext().then(() => refreshPlans()).catch(() => {});
+  if (changeInfo.status === 'complete') refreshContext().then(() => {
+    refreshPlans();
+    refreshRevisaCatalog();
+  }).catch(() => {});
 });

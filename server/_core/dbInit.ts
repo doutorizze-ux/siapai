@@ -48,6 +48,19 @@ CREATE TABLE IF NOT EXISTS product_settings (
   createdAt TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS revisa_progress (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  licenseId INT NOT NULL,
+  materialId INT NOT NULL,
+  componentId INT NOT NULL,
+  sequenceId INT NOT NULL,
+  activityId INT NOT NULL,
+  lessonNumber VARCHAR(64) NOT NULL DEFAULT '',
+  completedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_revisa_progress_activity (licenseId, materialId, componentId, sequenceId, activityId),
+  KEY idx_revisa_progress_lookup (licenseId, materialId, componentId, sequenceId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 
 const TEST_LICENSE = {
@@ -136,7 +149,7 @@ export async function initializeDatabase(): Promise<void> {
     for (const stmt of statements) {
       await conn.query(stmt);
     }
-    console.log("[dbInit] tabelas users/licenses/product_settings garantidas.");
+    console.log("[dbInit] tabelas users/licenses/product_settings/revisa_progress garantidas.");
 
     const [rows] = await conn.query(
       "SELECT id FROM licenses WHERE code = ?",

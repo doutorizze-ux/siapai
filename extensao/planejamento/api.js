@@ -433,6 +433,8 @@ window.SIAPApi = (() => {
         contexto: buildRevisaContextPayload(context),
         material_id: Number(revisa.materialId),
         componente_id: Number(revisa.componenteId),
+        bloco_id: Number(revisa.blocoId || 0),
+        sequencia_id: Number(revisa.sequenciaId || 0),
         atividade_ids: activityIds,
         numero_aula: String(lessonNumber || '')
       });
