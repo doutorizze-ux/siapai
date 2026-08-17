@@ -9,6 +9,7 @@ import Checkout from "./pages/Checkout";
 import Validate from "./pages/Validate";
 import Admin from "./pages/Admin";
 import DiagnosticoExtensao from "./pages/DiagnosticoExtensao";
+import Privacy from "./pages/Privacy";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -19,6 +20,7 @@ function Router() {
       <Route path={"/validar"} component={Validate} />
       <Route path={"/admin"} component={Admin} />
       <Route path={"/diagnostico-extensao"} component={DiagnosticoExtensao} />
+      <Route path={"/privacy"} component={Privacy} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
