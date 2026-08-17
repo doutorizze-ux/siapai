@@ -293,13 +293,25 @@ function renderSavedPlans(entries) {
 }
 
 async function refreshPlans() {
+  const page = String(activeContext?.page || '');
+  if (page && page !== 'planejamento') {
+    renderPlans({ plans: [] });
+    renderRevisaCatalog({
+      disponivel: false,
+      materiais: [],
+      reason: page === 'planejamento_turma'
+        ? 'Abra uma aula específica no SIAP para carregar o Revisa desta turma e disciplina.'
+        : 'Abra a edição de uma aula do SIAP para consultar o Revisa.'
+    });
+    return;
+  }
   try {
     const snapshot = await engine('PLANNING_SNAPSHOT', {}, 'planejamento');
     renderPlans(snapshot);
-    await refreshRevisaCatalog();
   } catch (_) {
     renderPlans({ plans: [] });
   }
+  await refreshRevisaCatalog();
 }
 
 async function loadSupportFile() {
@@ -356,11 +368,13 @@ function renderRevisaCatalog(catalog = null) {
   revisaState.catalog = catalog && typeof catalog === 'object' ? catalog : { disponivel: false, materiais: [] };
   const materialInfo = byId('revisaMaterialInfo');
   if (!revisaState.catalog.disponivel || !Array.isArray(revisaState.catalog.materiais) || !revisaState.catalog.materiais.length) {
-    box.hidden = true;
+    box.hidden = false;
     const toggle = byId('revisaEnabled');
     if (toggle) { toggle.checked = false; toggle.disabled = true; }
-    if (materialInfo) materialInfo.textContent = 'Nenhum Revisa cadastrado para esta série e disciplina.';
-    setRevisaStatus('Planejamento normal disponível.', 'muted');
+    byId('revisaBody').hidden = true;
+    const reason = String(revisaState.catalog.reason || '').trim();
+    if (materialInfo) materialInfo.textContent = reason || 'Nenhum Revisa cadastrado para esta série e disciplina.';
+    setRevisaStatus(reason ? 'Revisa disponível somente na edição de uma aula.' : 'Planejamento normal disponível.', 'muted');
     revisaState.selection = null;
     return;
   }
@@ -497,6 +511,11 @@ async function refreshRevisaCatalog() {
     const catalog = await engine('REVISA_CATALOG', {}, 'planejamento', 30000);
     renderRevisaCatalog(catalog);
   } catch (error) {
+    renderRevisaCatalog({
+      disponivel: false,
+      materiais: [],
+      reason: 'Não foi possível consultar o Revisa agora. Abra uma aula específica e clique em Atualizar.'
+    });
     setRevisaStatus('Não foi possível carregar o Revisa.', 'error');
     console.warn('[SiapAI] Catálogo Revisa falhou:', error?.message || error);
   } finally {
@@ -641,5 +660,7 @@ byId('generatePei').addEventListener('click', generatePei);
 byId('validateLicense').addEventListener('click', validateLicenseEmail);
 initTabs();
 Promise.all([refreshLicense(), refreshContext()]).then(() => refreshPlans());
-chrome.tabs.onActivated.addListener(() => refreshContext().catch(() => {}));
-chrome.tabs.onUpdated.addListener((_id, changeInfo) => { if (changeInfo.status === 'complete') refreshContext().catch(() => {}); });
+chrome.tabs.onActivated.addListener(() => refreshContext().then(() => refreshPlans()).catch(() => {}));
+chrome.tabs.onUpdated.addListener((_id, changeInfo) => {
+  if (changeInfo.status === 'complete') refreshContext().then(() => refreshPlans()).catch(() => {});
+});
