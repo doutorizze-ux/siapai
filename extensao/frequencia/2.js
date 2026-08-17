@@ -36,6 +36,8 @@
     LOOP_DELAY: 900,
     LOADING_CHECK: 600,
     LOADING_STABLE: 700,
+    DAY_LOAD_TIMEOUT: 15000,
+    DAY_LOAD_CHECK: 500,
     SAVE_CONFIRM_TIMEOUT: 18000
   };
 
@@ -478,12 +480,20 @@
     return `${m[3]}/${m[2].padStart(2, '0')}/${m[1].padStart(2, '0')}`;
   }
 
+  function normalizeCanonicalDate(value) {
+    const m = String(value || '').match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+    if (!m) return '';
+    return `${m[1]}/${m[2].padStart(2, '0')}/${m[3].padStart(2, '0')}`;
+  }
+
   function getCurrentDayCanonical() {
-    return sessionStorage.getItem(KEY.CURRENT_DAY) || '';
+    const saved = sessionStorage.getItem(KEY.CURRENT_DAY) || '';
+    return normalizeCanonicalDate(saved) || saved;
   }
 
   function setCurrentDayCanonical(canonical) {
-    if (canonical) sessionStorage.setItem(KEY.CURRENT_DAY, String(canonical));
+    const normalized = normalizeCanonicalDate(canonical) || String(canonical || '');
+    if (normalized) sessionStorage.setItem(KEY.CURRENT_DAY, normalized);
     else sessionStorage.removeItem(KEY.CURRENT_DAY);
   }
 
@@ -507,7 +517,8 @@
   }
 
   function isDayStillPending(canonical) {
-    return !!canonical && getPendingDays().some(day => day.canonical === canonical);
+    const expected = normalizeCanonicalDate(canonical) || canonical;
+    return !!expected && getPendingDays().some(day => day.canonical === expected);
   }
 
   function hasSaveFailureMessage() {
@@ -677,10 +688,10 @@
   function getPendingDays() {
     return getPendingCellsRaw()
       .filter(isEligibleUntilYesterday)
-      .filter(td => !isSkippedAbsenceDay(td.getAttribute('data-canonica') || ''))
+      .filter(td => !isSkippedAbsenceDay(normalizeCanonicalDate(td.getAttribute('data-canonica') || '')))
       .map(td => ({
         el: td,
-        canonical: td.getAttribute('data-canonica') || '',
+        canonical: normalizeCanonicalDate(td.getAttribute('data-canonica') || ''),
         dateBR: formatCanonicalToBR(td.getAttribute('data-canonica') || ''),
         text: (td.getAttribute('data') || '').trim(),
         dateObj: getCellDate(td)
@@ -702,8 +713,8 @@
   }
 
   function isCurrentDayLoadedForSave() {
-    const expected = getCurrentDayCanonical();
-    const selected = canonicalFromBR(getSelectedDateText());
+    const expected = normalizeCanonicalDate(getCurrentDayCanonical());
+    const selected = normalizeCanonicalDate(canonicalFromBR(getSelectedDateText()));
     return !!expected && !!selected && expected === selected;
   }
 
@@ -771,6 +782,40 @@
     const selected = getSelectedDateText();
     const btn = getSaveButton();
     return !!selected && !!btn && !btn.disabled && isCurrentDayLoadedForSave();
+  }
+
+  async function waitForSelectedDayReadyToSave() {
+    const expected = getCurrentDayCanonical();
+    const deadline = Date.now() + TIME.DAY_LOAD_TIMEOUT;
+    let lastState = '';
+
+    while (isActive() && !isBlocked()) {
+      const selected = getSelectedDateText();
+      const btn = getSaveButton();
+      const saveEnabled = !!btn && !btn.disabled;
+
+      if (saveEnabled && selected && isCurrentDayLoadedForSave()) {
+        return { btn, selected };
+      }
+
+      const state = `${selected || 'sem-data'}|${saveEnabled ? 'salvar-ativo' : 'salvar-indisponivel'}`;
+      if (state !== lastState) {
+        const shownDate = selected || 'ainda sem data';
+        log(`Aguardando carregar ${formatCanonicalToBR(expected) || expected}: o SIAP mostra ${shownDate}; botão Salvar ${saveEnabled ? 'ativo' : 'indisponível'}.`);
+        lastState = state;
+      }
+
+      if (Date.now() >= deadline) {
+        log(`O SIAP não confirmou o carregamento de ${formatCanonicalToBR(expected) || expected}. Nenhum salvamento foi feito; vou reabrir esse dia.`);
+        setPhase('click_day');
+        clearCurrentDayCanonical();
+        return null;
+      }
+
+      await sleep(TIME.DAY_LOAD_CHECK);
+    }
+
+    return null;
   }
 
   function updatePanel() {
@@ -886,13 +931,10 @@
   }
 
   async function saveSelectedDay() {
-    const btn = getSaveButton();
-    const selected = getSelectedDateText();
+    const loadedDay = await waitForSelectedDayReadyToSave();
+    if (!loadedDay) return false;
 
-    if (!btn || btn.disabled || !selected || !isCurrentDayLoadedForSave()) {
-      log('Aguardando o SIAP carregar exatamente o dia selecionado antes de salvar.');
-      return false;
-    }
+    const { selected } = loadedDay;
 
     log(`Salvando o dia selecionado: ${selected}`);
     updatePanel();
@@ -902,14 +944,15 @@
     const readyToSave = await waitForSiapReady('salvar o dia selecionado');
     if (!readyToSave || !isActive() || isBlocked()) return false;
 
-    if (!isCurrentDayLoadedForSave()) {
+    const saveButton = getSaveButton();
+    if (!saveButton || saveButton.disabled || !isCurrentDayLoadedForSave()) {
       log('O SIAP trocou ou ainda não carregou o dia solicitado. O salvamento foi bloqueado para evitar gravar a data errada.');
       return false;
     }
 
     setPendingSaveDay(getCurrentDayCanonical());
     setPhase('confirm_save');
-    const ok = triggerSave(btn);
+    const ok = triggerSave(saveButton);
 
     if (!ok) {
       log('Falha ao acionar o botão Salvar.');
@@ -986,25 +1029,15 @@
       }
 
       if (phase === 'save_day') {
-        if (hasSelectedDayReadyToSave()) {
-          const saved = await saveSelectedDay();
-          if (!saved) {
-            await sleep(TIME.LOOP_DELAY);
-            if (isActive() && !isBlocked()) {
-              running = false;
-              return processCycle();
-            }
-          }
-          return;
-        } else {
-          log('Aguardando a página carregar o dia selecionado para salvar...');
+        const saved = await saveSelectedDay();
+        if (!saved) {
           await sleep(TIME.LOOP_DELAY);
           if (isActive() && !isBlocked()) {
             running = false;
             return processCycle();
           }
-          return;
         }
+        return;
       }
 
       if (phase === 'confirm_save') {
