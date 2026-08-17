@@ -1,77 +1,127 @@
-import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "./db";
-import { licenses, productSettings, type InsertLicense, type License, type ProductSettings } from "../drizzle/schema";
+import { type InsertLicense, type License, type ProductSettings } from "../drizzle/schema";
 import { nanoid } from "nanoid";
 
 export async function createLicense(input: InsertLicense): Promise<License> {
-  const db = await getDbOrThrow();
+  const pool = getDbOrThrow();
   const code = input.code && input.code.trim().length > 0 ? input.code : `PP-${nanoid(12).toUpperCase()}`;
-  await db.insert(licenses).values({ ...input, code } as InsertLicense);
-  const [row] = await db.select().from(licenses).where(eq(licenses.code, code)).limit(1);
-  if (!row) throw new Error("Falha ao criar licença");
-  return row;
+  await pool.query(
+    `INSERT INTO licenses (code, email, active, planCode, customerId, paymentId, startDate, expiresAt, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    [code, input.email, input.active ?? 0, input.planCode, input.customerId ?? null, input.paymentId ?? null, input.startDate, input.expiresAt]
+  );
+  const [rows] = await pool.query(
+    `SELECT * FROM licenses WHERE code = ? LIMIT 1`,
+    [code]
+  );
+  const arr = rows as unknown[];
+  if (arr.length === 0) throw new Error("Falha ao criar licença");
+  return arr[0] as License;
 }
 
 export async function getLicenseByCode(code: string) {
-  const db = await getDbOrThrow();
-  const [row] = await db.select().from(licenses).where(eq(licenses.code, code.trim().toUpperCase())).limit(1);
-  return row;
+  const pool = getDbOrThrow();
+  const [rows] = await pool.query(
+    `SELECT * FROM licenses WHERE code = ? LIMIT 1`,
+    [code.trim().toUpperCase()]
+  );
+  const arr = rows as unknown[];
+  return arr.length > 0 ? arr[0] as License : undefined;
 }
 
 export async function getLicensesByEmail(email: string) {
-  const db = await getDbOrThrow();
+  const pool = getDbOrThrow();
   const normalized = email.trim().toLowerCase();
-  return db.select().from(licenses).where(eq(sql`LOWER(${licenses.email})`, normalized)).orderBy(desc(licenses.createdAt));
+  const [rows] = await pool.query(
+    `SELECT * FROM licenses WHERE LOWER(email) = ? ORDER BY createdAt DESC`,
+    [normalized]
+  );
+  return rows as unknown[] as License[];
 }
 
 export async function getAllLicenses() {
-  const db = await getDbOrThrow();
-  return db.select().from(licenses).orderBy(desc(licenses.createdAt));
+  const pool = getDbOrThrow();
+  const [rows] = await pool.query(
+    `SELECT * FROM licenses ORDER BY createdAt DESC`
+  );
+  return rows as unknown[] as License[];
 }
 
 export async function updateLicense(id: number, patch: { active?: number; email?: string; expiresAt?: Date | string; customerId?: string | null; paymentId?: string | null; startDate?: Date | string | null }) {
-  const db = await getDbOrThrow();
-  await db.update(licenses).set(patch as never).where(eq(licenses.id, id));
+  const pool = getDbOrThrow();
+  const parts: string[] = [];
+  const values: unknown[] = [];
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) {
+      parts.push(`${key} = ?`);
+      values.push(value);
+    }
+  }
+  if (parts.length === 0) return;
+  parts.push(`updatedAt = NOW()`);
+  values.push(id);
+  await pool.query(
+    `UPDATE licenses SET ${parts.join(", ")} WHERE id = ?`,
+    values
+  );
 }
 
 export async function deleteLicense(id: number) {
-  const db = await getDbOrThrow();
-  await db.delete(licenses).where(eq(licenses.id, id));
+  const pool = getDbOrThrow();
+  await pool.query(`DELETE FROM licenses WHERE id = ?`, [id]);
 }
 
 export async function getProductSettings(): Promise<ProductSettings> {
-  const db = await getDbOrThrow();
-  const [row] = await db.select().from(productSettings).limit(1);
-  if (!row) {
-    const result = await createDefaultSettings();
-    return result;
+  const pool = getDbOrThrow();
+  const [rows] = await pool.query(
+    `SELECT * FROM productSettings LIMIT 1`
+  );
+  const arr = rows as unknown[];
+  if (arr.length === 0) {
+    return await createDefaultSettings();
   }
-  return row;
+  return arr[0] as ProductSettings;
 }
 
 export async function updateProductSettings(patch: Partial<ProductSettings>) {
-  const db = await getDbOrThrow();
-  const [current] = await db.select().from(productSettings).limit(1);
+  const pool = getDbOrThrow();
+  const [rows] = await pool.query(
+    `SELECT * FROM productSettings LIMIT 1`
+  );
+  const arr = rows as unknown[];
+  const current = arr.length > 0 ? arr[0] as ProductSettings : undefined;
   if (!current) {
-    await db.insert(productSettings).values(patch as never);
-  } else {
-    await db.update(productSettings).set(patch as never).where(eq(productSettings.id, current.id));
+    await createDefaultSettings();
+    return;
   }
+  const parts: string[] = [];
+  const values: unknown[] = [];
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) {
+      parts.push(`${key} = ?`);
+      values.push(value);
+    }
+  }
+  if (parts.length === 0) return;
+  values.push(current.id);
+  await pool.query(
+    `UPDATE productSettings SET ${parts.join(", ")} WHERE id = ?`,
+    values
+  );
 }
 
 async function createDefaultSettings(): Promise<ProductSettings> {
-  const db = await getDbOrThrow();
-  await db.insert(productSettings).values({
-    name: "PlanejaPro SIAP",
-    priceCents: 5990,
-    installmentCount: 6,
-    currency: "BRL",
-    description: "Acesso ao PlanejaPro até 31/12 do ano. Pagamento único, sem mensalidade.",
-    expiryDate: new Date("2026-12-31T00:00:00Z"),
-    asaasMode: "sandbox",
-  });
-  const [row] = await db.select().from(productSettings).limit(1);
-  return row!;
+  const pool = getDbOrThrow();
+  await pool.query(
+    `INSERT INTO productSettings (name, priceCents, installmentCount, currency, description, expiryDate, asaasMode)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ["PlanejaPro SIAP", 5990, 6, "BRL", "Acesso ao PlanejaPro até 31/12 do ano. Pagamento único, sem mensalidade.", new Date("2026-12-31T00:00:00Z"), "sandbox"]
+  );
+  const [rows] = await pool.query(
+    `SELECT * FROM productSettings LIMIT 1`
+  );
+  const arr = rows as unknown[];
+  return arr[0] as ProductSettings;
 }
 
 export function isLicenseActive(l: Pick<License, "active" | "expiresAt">): boolean {
@@ -109,12 +159,14 @@ export async function activateLicenseByPayment(email: string, paymentId: string,
 }
 
 async function dbInsertLicense(input: InsertLicense) {
-  const db = await getDbOrThrow();
-  await db.insert(licenses).values(input as never);
+  const pool = getDbOrThrow();
+  await pool.query(
+    `INSERT INTO licenses (code, email, active, planCode, customerId, paymentId, startDate, expiresAt, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    [input.code, input.email, input.active, input.planCode, input.customerId, input.paymentId, input.startDate, input.expiresAt]
+  );
 }
 
-async function getDbOrThrow() {
-  const db = await getDb();
-  if (!db) throw new Error("Banco de dados indisponível");
-  return db;
+function getDbOrThrow() {
+  return getDb();
 }
