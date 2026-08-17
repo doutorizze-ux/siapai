@@ -1,13 +1,26 @@
 /**
  * Inicialização do schema do SiapAI no boot do servidor.
- * Cria as tabelas `licenses` e `product_settings` (CREATE TABLE IF NOT EXISTS)
+ * Cria as tabelas `users`, `licenses` e `product_settings` (CREATE TABLE IF NOT EXISTS)
  * e garante a licença de teste para 02376222117@siapai.com.br.
  * Executado antes do servidor começar a escutar, com retry em caso de o MySQL
  * ainda não estar pronto (cold start em compose).
  */
 import mysql from "mysql2/promise";
 
-const TABLES_SQL = `
+export const TABLES_SQL = `
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  openId VARCHAR(64) NOT NULL UNIQUE,
+  name TEXT NULL,
+  email VARCHAR(320) NULL,
+  loginMethod VARCHAR(64) NULL,
+  role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  lastSignedIn TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS licenses (
   id INT AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(320) NOT NULL,
@@ -123,7 +136,7 @@ export async function initializeDatabase(): Promise<void> {
     for (const stmt of statements) {
       await conn.query(stmt);
     }
-    console.log("[dbInit] tabelas licenses/product_settings garantidas.");
+    console.log("[dbInit] tabelas users/licenses/product_settings garantidas.");
 
     const [rows] = await conn.query(
       "SELECT id FROM licenses WHERE code = ?",
