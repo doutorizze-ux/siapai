@@ -1,12 +1,26 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { asaasGetPixQrCode } from "./asaas";
+import { asaasGetPixQrCode, getConfiguredAsaasMode } from "./asaas";
 
 const originalFetch = global.fetch;
 const originalToken = process.env.ASAAS_API_KEY;
+const originalApiUrl = process.env.ASAAS_API_URL;
 
 afterEach(() => {
   global.fetch = originalFetch;
   process.env.ASAAS_API_KEY = originalToken;
+  process.env.ASAAS_API_URL = originalApiUrl;
+});
+
+describe("getConfiguredAsaasMode", () => {
+  it("reporta produção quando o servidor usa a URL de produção do Asaas", () => {
+    process.env.ASAAS_API_URL = "https://api.asaas.com/v3";
+    expect(getConfiguredAsaasMode()).toBe("production");
+  });
+
+  it("reporta sandbox quando o servidor usa a URL sandbox do Asaas", () => {
+    process.env.ASAAS_API_URL = "https://api-sandbox.asaas.com/v3";
+    expect(getConfiguredAsaasMode()).toBe("sandbox");
+  });
 });
 
 describe("asaasGetPixQrCode", () => {

@@ -9,6 +9,16 @@ function getBaseUrl(mode: ProductSettings["asaasMode"]): string {
   return mode === "production" ? DEFAULT_PRODUCTION_URL : DEFAULT_SANDBOX_URL;
 }
 
+/**
+ * O ambiente efetivo é definido pela URL injetada no servidor. O valor salvo
+ * no produto serve apenas como configuração administrativa legada e não deve
+ * induzir o painel a exibir "Sandbox" quando o checkout usa a API de produção.
+ */
+export function getConfiguredAsaasMode(): ProductSettings["asaasMode"] {
+  const baseUrl = getBaseUrl("sandbox").toLowerCase();
+  return baseUrl.includes("api-sandbox.asaas.com") ? "sandbox" : "production";
+}
+
 function getToken(): string {
   // Remove espaços, BOM e newlines que o Coolify pode injetar no valor
   const token = (process.env.ASAAS_API_KEY ?? "").replace(/[\s\uFEFF]+/g, "");

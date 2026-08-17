@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { generateLessonPlans, generatePei } from "../llm";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../_core/trpc";
-import { asaasCreateCustomer, asaasCreatePixPayment, asaasGetCustomerByEmail, asaasGetPayment, asaasGetPixQrCode, formatCentsToBRL } from "../asaas";
+import { asaasCreateCustomer, asaasCreatePixPayment, asaasGetCustomerByEmail, asaasGetPayment, asaasGetPixQrCode, formatCentsToBRL, getConfiguredAsaasMode } from "../asaas";
 import {
   activateLicenseByPayment,
   createLicense,
@@ -18,9 +18,14 @@ import {
 
 const emailSchema = z.string().email("E-mail inválido").trim().toLowerCase();
 
+async function getEffectiveProductSettings() {
+  const settings = await getProductSettings();
+  return { ...settings, asaasMode: getConfiguredAsaasMode() };
+}
+
 export const commerceRouter = router({
   /** Preço e configurações públicas do produto */
-  productInfo: publicProcedure.query(() => getProductSettings()),
+  productInfo: publicProcedure.query(() => getEffectiveProductSettings()),
 
   /** Valida licença por e-mail + código (usado no site e pela extensão) */
   validateLicense: publicProcedure
@@ -304,7 +309,7 @@ export const adminRouter = router({
     return { success: true };
   }),
 
-  getProductSettings: adminProcedure.query(() => getProductSettings()),
+  getProductSettings: adminProcedure.query(() => getEffectiveProductSettings()),
 
   updateProductSettings: adminProcedure
     .input(
@@ -323,7 +328,7 @@ export const adminRouter = router({
         ...rest,
         ...(expiryDate ? { expiryDate: new Date(expiryDate + "T00:00:00Z") } : {}),
       } as never);
-      const settings = await getProductSettings();
+      const settings = await getEffectiveProductSettings();
       return {
         success: true,
         priceDisplay: `${settings.currency === "BRL" ? "R$" : ""} ${formatCentsToBRL(settings.priceCents)}`,
