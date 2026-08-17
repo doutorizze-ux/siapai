@@ -34,6 +34,11 @@ async function getActiveTab() {
 }
 
 async function engine(command, payload = {}, expectedPage, timeoutMs) {
+  // Parar uma automação permanece permitido para que uma tarefa iniciada antes
+  // da expiração possa ser interrompida com segurança. Todos os demais
+  // comandos passam pela confirmação atual do servidor.
+  const isStopCommand = command === 'PLANNING_STOP' || command === 'FREQUENCY_STOP' || command === 'CONTENT_STOP';
+  if (!isStopCommand) await requireActiveLicense();
   const tab = await getActiveTab();
   if (!tab?.id || !tab.url?.startsWith('https://siap.educacao.go.gov.br/')) {
     throw new Error('Abra a tela correspondente no SIAP antes de executar este comando.');
@@ -85,7 +90,7 @@ async function refreshLicense() {
   }
   try {
     const result = await request({ type: 'SIAP_REQUEST', path: '/license/check.php', method: 'GET', token: auth.token });
-    const valid = result?.ok !== false && result?.access_granted !== false && result?.expired !== true;
+    const valid = result?.ok === true && result?.expired !== true;
     state.className = `license-state ${valid ? 'active' : 'expired'}`;
     const date = result?.expires_at_br || result?.license?.expires_at || auth?.license?.expires_at || 'não informada';
     state.querySelector('div').innerHTML = `<strong>${valid ? 'Licença ativa' : 'Licença indisponível'}</strong><small>Validade: ${escapeHtml(date)}</small>`;
@@ -97,6 +102,14 @@ async function refreshLicense() {
     loginPanel.hidden = false;
     return null;
   }
+}
+
+async function requireActiveLicense() {
+  const auth = await refreshLicense();
+  if (!auth?.token || auth.accessGranted !== true) {
+    throw new Error('Sua licença precisa estar ativa e validada antes de usar este módulo.');
+  }
+  return auth;
 }
 
 async function validateLicenseEmail() {
@@ -131,7 +144,7 @@ async function validateLicenseEmail() {
       user: result.user || result?.data?.user || { email },
       license: result.license || result?.data?.license || null,
       renewal: result.renewal || result?.data?.renewal || null,
-      accessGranted: result.access_granted !== false,
+      accessGranted: result.access_granted === true,
       message: result.message || ''
     };
     await new Promise((resolve, reject) => chrome.tabs.sendMessage(tab.id, { type: 'SIAP_AUTH_APPLY', auth }, (applyResponse) => {

@@ -231,6 +231,7 @@ export function registerExtension3Routes(expressRouter: Router): void {
         },
         days_remaining: days,
         expired,
+        access_granted: !expired,
         expires_at_br: formatDateBR(byId.expiresAt),
       });
     } catch (error) {

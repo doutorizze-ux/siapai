@@ -21,6 +21,37 @@
 
   function noOp() {}
 
+  function readRuntimeAuth() {
+    const values = [window.SIAP_SAAS_AUTH, globalThis.SIAP_SAAS_AUTH];
+    try { values.push(sessionStorage.getItem('SIAP_SAAS_AUTH')); } catch (_) {}
+    try { values.push(localStorage.getItem('SIAP_SAAS_AUTH')); } catch (_) {}
+    for (const value of values) {
+      if (!value) continue;
+      if (typeof value === 'object') return value;
+      try {
+        const parsed = JSON.parse(value);
+        if (parsed && typeof parsed === 'object') return parsed;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function assertRuntimeLicense(command) {
+    const isStopCommand = command === 'PLANNING_STOP' || command === 'FREQUENCY_STOP' || command === 'CONTENT_STOP';
+    if (isStopCommand) return;
+    const auth = readRuntimeAuth();
+    let token = String(window.SIAP_SAAS_TOKEN || globalThis.SIAP_SAAS_TOKEN || '').trim();
+    if (!token) {
+      try { token = String(sessionStorage.getItem('SIAP_SAAS_TOKEN') || '').trim(); } catch (_) {}
+    }
+    if (!token) {
+      try { token = String(localStorage.getItem('SIAP_SAAS_TOKEN') || '').trim(); } catch (_) {}
+    }
+    if (auth?.accessGranted !== true || !token) {
+      throw new Error('Licença ativa obrigatória. Valide o e-mail no painel lateral antes de usar este módulo.');
+    }
+  }
+
   function applyHeadlessUiAdapter() {
     window.__SIAP_SAAS_HEADLESS__ = true;
     const ui = window.SIAPUI;
@@ -299,7 +330,9 @@
         return send(data.requestId, true, { initialized: true, pageKey: data.pageKey });
       }
       if (data.action === 'engineCommand') {
-        const result = await runHeadlessCommand(String(data.command || ''), data.payload || {});
+        const command = String(data.command || '');
+        assertRuntimeLicense(command);
+        const result = await runHeadlessCommand(command, data.payload || {});
         return send(data.requestId, true, result);
       }
       throw new Error('Ação da ponte não reconhecida.');

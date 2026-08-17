@@ -1188,6 +1188,41 @@
         return result;
     }
 
+    async function requireLiveLicense() {
+        const auth = await getAuth();
+        if (!auth?.token || auth.accessGranted !== true) {
+            clearRuntimeAuthGlobals();
+            throw new Error('Sua licença precisa ser validada no painel lateral antes de iniciar uma automação.');
+        }
+
+        let status;
+        try {
+            status = await fetchLicenseStatus(auth.token);
+        } catch (_) {
+            clearRuntimeAuthGlobals();
+            throw new Error('Não foi possível revalidar sua licença. Confira a conexão e tente novamente.');
+        }
+
+        const accessGranted = status?.ok === true && status?.expired !== true;
+        if (!accessGranted) {
+            await clearAuth();
+            clearRuntimeAuthGlobals();
+            throw new Error('Sua licença não está ativa. Valide um e-mail com licença antes de usar os módulos.');
+        }
+
+        const freshAuth = {
+            ...auth,
+            user: status.user || auth.user || null,
+            license: status.license || auth.license || null,
+            renewal: status.renewal || auth.renewal || null,
+            accessGranted: true,
+            message: ''
+        };
+        await setAuth(freshAuth);
+        exposeRuntimeAuthGlobals(freshAuth);
+        return freshAuth;
+    }
+
     async function refreshLicensePanel(auth) {
         if (!auth?.token) {
             updateHeaderAuthButtonsState(false);
@@ -1526,12 +1561,7 @@
     async function ensureHeadlessEngine(page) {
         if (!page) throw new Error('Abra uma página compatível do SIAP antes de usar este módulo.');
 
-        const auth = await getAuth();
-        if (!auth?.accessGranted || !auth?.token) {
-            throw new Error('Sua licença precisa estar ativa antes de iniciar uma automação.');
-        }
-
-        exposeRuntimeAuthGlobals(auth);
+        const auth = await requireLiveLicense();
         await ensureMainBridgeReady();
         await bridgeRequest('activateHeadless', {}, 5000);
 
