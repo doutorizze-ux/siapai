@@ -780,8 +780,8 @@ window.SIAPExecutor = (() => {
 
   function getAvailableReplicationCheckboxes(dialog) {
     if (!dialog) return [];
-    return Array.from(dialog.querySelectorAll('#listaTurmas input[type="checkbox"]'))
-      .filter((input) => !input.disabled && !input.closest('label[style*="display:none"]'));
+    return Array.from(dialog.querySelectorAll('#listaTurmas input[type="checkbox"], [id*="listaTurma" i] input[type="checkbox"], input[type="checkbox"][id*="Turma" i]'))
+      .filter((input) => !input.disabled && input.offsetParent !== null && !input.closest('label[style*="display:none"]'));
   }
 
   function markReplicationCheckboxes(inputs = []) {
@@ -799,30 +799,16 @@ window.SIAPExecutor = (() => {
 
   function ensureOutrasTurmasSelected(dialog) {
     const select = dialog?.querySelector('#cphFuncionalidade_cphCampos_ddlTipoReplicacao');
-    if (!select) return false;
-    if (select.value !== 'OUTRAS') {
-      select.value = 'OUTRAS';
+    if (!select) throw new Error('Tipo de replicação não está disponível no SIAP.');
+    const otherOption = Array.from(select.options || []).find((option) => U.normalizeText(option.textContent || '').includes('outra'));
+    if (!otherOption) throw new Error('O SIAP não ofereceu a opção de replicar para outras turmas.');
+    if (select.value !== otherOption.value) {
+      select.value = otherOption.value;
       select.dispatchEvent(new Event('input', { bubbles: true }));
       select.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
     }
-    return true;
-  }
-
-  function injectReplicationAdvanceButton(dialog, onClick) {
-    if (!dialog) return null;
-    let btn = dialog.querySelector('#siap_btn_popup_salvar_abrir_proxima');
-    if (!btn) {
-      const anchor = dialog.querySelector('#cphFuncionalidade_cphCampos_btnConfirmarReplicar');
-      btn = document.createElement('button');
-      btn.type = 'button';
-      btn.id = 'siap_btn_popup_salvar_abrir_proxima';
-      btn.className = 'btn btn-success';
-      btn.style.marginRight = '8px';
-      btn.textContent = 'Salvar e abrir próxima';
-      if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(btn, anchor);
-    }
-    btn.onclick = onClick;
-    return btn;
+    return false;
   }
 
   async function maybeReplicateAndAdvanceCurrentLesson(previousNumeroAula) {
@@ -831,10 +817,7 @@ window.SIAPExecutor = (() => {
     }
 
     const btnReplicar = document.querySelector(C.SELECTORS.REPLICATE_BUTTON);
-    if (!btnReplicar) {
-      L.log('[AVISO] Opção de replicar ativa, mas o botão Replicar não foi encontrado.');
-      return false;
-    }
+    if (!btnReplicar) throw new Error('A opção de replicar está ativa, mas o botão Replicar não foi encontrado no SIAP.');
 
     L.log('Opção de replicar ativa. Abrindo popup de replicação...');
     U.safeClick(btnReplicar);
@@ -846,24 +829,26 @@ window.SIAPExecutor = (() => {
       dialog = await waitForReplicationDialog(5000);
     }
 
-    if (!dialog) {
-      L.log('[AVISO] Popup de replicação não apareceu. Seguindo fluxo normal.');
-      return false;
+    if (!dialog) throw new Error('O SIAP não abriu a janela de replicação. A aula não foi salva para evitar um avanço sem réplica.');
+
+    const typeChanged = ensureOutrasTurmasSelected(dialog);
+    if (typeChanged) {
+      await U.waitForAsyncPostBack(12000);
+      await U.sleep(500);
+      dialog = await waitForReplicationDialog(6000);
+      if (!dialog) throw new Error('A janela de replicação foi fechada antes de carregar as outras turmas.');
     }
 
-    ensureOutrasTurmasSelected(dialog);
-    await U.sleep(300);
-
+    await U.waitUntil(() => getAvailableReplicationCheckboxes(dialog).length > 0, 10000, 200);
     const checkboxes = getAvailableReplicationCheckboxes(dialog);
     if (!checkboxes.length) {
-      L.log('Nenhuma turma disponível para replicação. Cancelando popup e seguindo fluxo normal.');
       const btnCancelar = dialog.querySelector('#cphFuncionalidade_cphCampos_btnCancelarReplicar');
       if (btnCancelar) {
         U.safeClick(btnCancelar);
         await U.waitForAsyncPostBack(8000);
         await waitForReplicationDialogClose(4000);
       }
-      return false;
+      throw new Error('Nenhuma turma de destino disponível para replicação no SIAP.');
     }
 
     const totalMarcadas = markReplicationCheckboxes(checkboxes);
@@ -879,7 +864,8 @@ window.SIAPExecutor = (() => {
       U.safeClick(btnConfirmar);
 
       await U.waitForAsyncPostBack(12000);
-      await waitForReplicationDialogClose(8000);
+      const dialogClosed = await waitForReplicationDialogClose(8000);
+      if (!dialogClosed) throw new Error('O SIAP não confirmou a replicação: a janela de destino permaneceu aberta.');
       await waitForPageReady(12000, previousNumeroAula || '');
       await U.sleep(500);
 
@@ -924,22 +910,7 @@ window.SIAPExecutor = (() => {
       return true;
     };
 
-    const popupButton = injectReplicationAdvanceButton(dialog, async () => {
-      popupButton.disabled = true;
-      try {
-        await runSequence();
-      } catch (err) {
-        popupButton.disabled = false;
-        throw err;
-      }
-    });
-
-    if (!popupButton) {
-      throw new Error('Não foi possível inserir o botão novo no popup de replicação.');
-    }
-
-    await popupButton.onclick();
-    return true;
+    return runSequence();
   }
 
   async function waitForNextLessonLoaded(previousNumeroAula, timeout = 30000) {

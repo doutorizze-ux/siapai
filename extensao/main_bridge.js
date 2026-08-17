@@ -128,6 +128,7 @@
     if (command === 'PLANNING_STORE') {
       const context = getPlanningContext();
       const result = parseProviderResponse(payload?.providerResponse);
+      const requestedCount = Math.max(1, Math.min(20, Number(payload?.count) || 1));
       const generationOptions = {
         customContentEnabled: !!payload?.customContentEnabled,
         replicateToOtherClass: !!payload?.replicateToOtherClass,
@@ -136,6 +137,10 @@
       const apiContext = { ...context, generationOptions };
       const valid = window.SIAPApi?.validateAndFixPlan ? window.SIAPApi.validateAndFixPlan(result, apiContext) : result;
       if (!Array.isArray(valid?.aulas) || !valid.aulas.length) throw new Error('A IA não retornou aulas válidas para aplicar.');
+      // A resposta da IA pode ignorar o tamanho solicitado e devolver um lote
+      // padrão. O painel só pode disponibilizar exatamente a quantidade que o
+      // professor escolheu, inclusive no caso de apenas uma aula.
+      valid.aulas = valid.aulas.slice(0, requestedCount);
       const state = window.SIAPState;
       state.generatedPlans = valid.aulas;
       state.currentPlanIndex = 0;
