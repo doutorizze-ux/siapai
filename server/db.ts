@@ -6,6 +6,18 @@ import mysql from "mysql2/promise";
 
 let _pool: mysql.Pool | null = null;
 
+/**
+ * Define como o papel deve ser tratado no upsert. Atualizações rotineiras de
+ * sessão não informam um papel e, portanto, não podem rebaixar um administrador
+ * existente para o valor padrão `user`.
+ */
+export function getUserUpsertRoleStrategy(role?: "user" | "admin" | null) {
+  return {
+    insertRole: role ?? "user",
+    shouldReplaceExistingRole: role === "user" || role === "admin" ? 1 : 0,
+  } as const;
+}
+
 function parseDbUrl(url: string): mysql.ConnectionOptions {
   const u = new URL(url);
   return {
@@ -39,7 +51,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     const email = user.email ?? null;
     const loginMethod = user.loginMethod ?? null;
     const lastSignedIn = user.lastSignedIn ?? now;
-    const role = user.role ?? "user";
+    const { insertRole, shouldReplaceExistingRole } = getUserUpsertRoleStrategy(user.role);
 
     await pool.query(
       `INSERT INTO users (openId, name, email, loginMethod, role, lastSignedIn, createdAt, updatedAt)
@@ -48,10 +60,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
          name = VALUES(name),
          email = VALUES(email),
          loginMethod = VALUES(loginMethod),
-         role = VALUES(role),
+         role = IF(?, VALUES(role), role),
          lastSignedIn = VALUES(lastSignedIn),
          updatedAt = NOW()`,
-      [user.openId, name, email, loginMethod, role, lastSignedIn]
+      [user.openId, name, email, loginMethod, insertRole, lastSignedIn, shouldReplaceExistingRole]
     );
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
