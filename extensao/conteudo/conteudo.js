@@ -219,6 +219,29 @@
     }
   }
 
+  function triggerNativeSave(button) {
+    if (!button) return false;
+
+    const form = button.form || document.forms.FormularioPrincipal || document.querySelector('form');
+    if (!form) return false;
+
+    try { button.focus(); } catch (_) {}
+
+    try {
+      button.click();
+      return true;
+    } catch (_) {}
+
+    try {
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit(button);
+        return true;
+      }
+    } catch (_) {}
+
+    return false;
+  }
+
   function log(message) {
     const text = String(message || '');
     console.log('[SIAP Executor]', text);
@@ -469,6 +492,10 @@
 
     try { select.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {}
     try { select.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+
+    try {
+      if (typeof select.onchange === 'function') select.onchange();
+    } catch (_) {}
 
     return true;
   }
@@ -1663,7 +1690,7 @@
     state.stage = 'confirm_save';
     saveState();
 
-    const clicked = safeClick(button);
+    const clicked = triggerNativeSave(button);
     if (!clicked) {
       clearPendingSave();
       state.stage = 'save';

@@ -701,6 +701,12 @@
     return field ? String(field.value || '').trim() : '';
   }
 
+  function isCurrentDayLoadedForSave() {
+    const expected = getCurrentDayCanonical();
+    const selected = canonicalFromBR(getSelectedDateText());
+    return !!expected && !!selected && expected === selected;
+  }
+
   function getSaveButton() {
     return document.querySelector('#cphFuncionalidade_btnAlterar');
   }
@@ -764,7 +770,7 @@
   function hasSelectedDayReadyToSave() {
     const selected = getSelectedDateText();
     const btn = getSaveButton();
-    return !!selected && !!btn && !btn.disabled;
+    return !!selected && !!btn && !btn.disabled && isCurrentDayLoadedForSave();
   }
 
   function updatePanel() {
@@ -883,8 +889,8 @@
     const btn = getSaveButton();
     const selected = getSelectedDateText();
 
-    if (!btn || btn.disabled || !selected) {
-      log('Dia ainda não ficou pronto para salvar. Vou tentar novamente.');
+    if (!btn || btn.disabled || !selected || !isCurrentDayLoadedForSave()) {
+      log('Aguardando o SIAP carregar exatamente o dia selecionado antes de salvar.');
       return false;
     }
 
@@ -896,7 +902,12 @@
     const readyToSave = await waitForSiapReady('salvar o dia selecionado');
     if (!readyToSave || !isActive() || isBlocked()) return false;
 
-    setPendingSaveDay(getCurrentDayCanonical() || canonicalFromBR(selected));
+    if (!isCurrentDayLoadedForSave()) {
+      log('O SIAP trocou ou ainda não carregou o dia solicitado. O salvamento foi bloqueado para evitar gravar a data errada.');
+      return false;
+    }
+
+    setPendingSaveDay(getCurrentDayCanonical());
     setPhase('confirm_save');
     const ok = triggerSave(btn);
 
