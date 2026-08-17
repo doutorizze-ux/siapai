@@ -91,6 +91,15 @@ async function startServer() {
     console.log(`Server running on http://localhost:${port}/`);
   });
 
+  // Diagnóstico: mostrar quais envs críticas estão disponíveis (sem revelar valores)
+  console.log(`[env check] ASAAS_API_KEY: ${process.env.ASAAS_API_KEY ? "OK (length=" + process.env.ASAAS_API_KEY.replace(/[\s\uFEFF]+/g, "").length + ")" : "MISSING"}`);
+  console.log(`[env check] ADMIN_EMAIL: ${process.env.ADMIN_EMAIL ? "OK" : "MISSING"}`);
+  console.log(`[env check] ADMIN_PASSWORD: ${process.env.ADMIN_PASSWORD ? "OK" : "MISSING"}`);
+  console.log(`[env check] DATABASE_URL: ${process.env.DATABASE_URL ? "OK" : "MISSING"}`);
+  console.log(`[env check] JWT_SECRET: ${process.env.JWT_SECRET ? "OK" : "MISSING"}`);
+  console.log(`[env check] NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`[env check] PORT: ${process.env.PORT}`);
+
   // Inicializa o schema do banco em paralelo ao servidor já ouvindo a porta
   // (retry interno do dbInit cobre o cold start do MySQL em compose).
   initializeDatabase().catch(err => {
