@@ -60,6 +60,35 @@ async function authorizeBearer(req: Request, res: Response): Promise<{ email: st
     res.status(401).json({ ok: false, error: "token_invalido", message: "Sessão expirada. Faça login novamente." });
     return null;
   }
+
+  // A assinatura do JWT comprova que o token foi emitido pelo SiapAI, mas não
+  // substitui a consulta atual da licença: ela pode ter expirado, sido
+  // desativada ou removida depois do login. Todas as rotas de automação passam
+  // por este guarda, inclusive geração por IA e PEI.
+  try {
+    const licenses = await getLicensesByEmail(decoded.email);
+    const license = licenses.find((item) => item.id === decoded.licenseId);
+    if (!license || !isLicenseActive(license)) {
+      res.status(403).json({
+        ok: false,
+        error: "licenca_inativa",
+        message: "Sua licença não está ativa. Regularize a licença antes de usar este recurso.",
+        expired: true,
+        access_granted: false,
+      });
+      return null;
+    }
+  } catch (error) {
+    console.error("[Extensão 3.2] erro ao validar licença do token:", error);
+    res.status(503).json({
+      ok: false,
+      error: "licenca_indisponivel",
+      message: "Não foi possível validar sua licença agora. Tente novamente.",
+      access_granted: false,
+    });
+    return null;
+  }
+
   return decoded;
 }
 
