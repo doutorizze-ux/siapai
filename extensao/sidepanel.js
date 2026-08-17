@@ -337,7 +337,8 @@ async function runPlanning(command, message) {
   const button = command === 'PLANNING_APPLY_NEXT' ? byId('applyNext') : command === 'PLANNING_APPLY_ALL' ? byId('applyAll') : byId('stopPlanning');
   try {
     setBusy(button, true, command === 'PLANNING_STOP' ? 'Parando…' : 'Aplicando…');
-    const snapshot = await engine(command, {}, 'planejamento', command === 'PLANNING_APPLY_ALL' ? 30000 : 15000);
+    const timeoutMs = command === 'PLANNING_APPLY_ALL' ? 120000 : command === 'PLANNING_APPLY_NEXT' ? 90000 : 15000;
+    const snapshot = await engine(command, {}, 'planejamento', timeoutMs);
     renderPlans(snapshot);
     showOutput('generationOutput', message);
   } catch (error) {

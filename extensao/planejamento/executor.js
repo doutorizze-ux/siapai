@@ -811,6 +811,45 @@ window.SIAPExecutor = (() => {
     return false;
   }
 
+  function assertOtherClassReplicationAvailable() {
+    if (!S.replicateToOtherClass) return true;
+
+    const select = document.querySelector('#cphFuncionalidade_cphCampos_ddlTipoReplicacao');
+    const hasOtherClassesOption = Array.from(select?.options || []).some((option) =>
+      String(option.value || '').toUpperCase() === 'OUTRAS' ||
+      U.normalizeText(option.textContent || '').includes('outra turma')
+    );
+
+    if (hasOtherClassesOption) return true;
+
+    const targets = Array.isArray(window.turmasReplicacao) ? window.turmasReplicacao : [];
+    const eligibleTargets = targets.filter((target) => target?.PodeReplicar !== false);
+    const targetHint = targets.length && !eligibleTargets.length
+      ? ' As turmas retornadas pelo SIAP já possuem planejamento nesta aula ou não estão elegíveis.'
+      : targets.length
+        ? ' O SIAP não disponibilizou essas turmas como destino de replicação para esta aula.'
+        : ' O SIAP não retornou nenhuma turma de destino elegível para esta disciplina, série e aula.';
+
+    throw new Error(
+      'Não é possível replicar esta aula para outra turma agora.' + targetHint +
+      ' Abra a turma de destino no SIAP e confirme que ela usa a mesma disciplina/série e ainda não possui planejamento nesta aula; ou desmarque “Replicar aula para outra turma” para salvar somente a turma atual.'
+    );
+  }
+
+  function alertOrThrowFromHeadless(message) {
+    if (window.__SIAP_SAAS_HEADLESS__) throw new Error(message);
+    alert(message);
+    return false;
+  }
+
+  function notifyCompletion(message) {
+    if (window.__SIAP_SAAS_HEADLESS__) {
+      L.log(message);
+      return;
+    }
+    alert(message);
+  }
+
   async function maybeReplicateAndAdvanceCurrentLesson(previousNumeroAula) {
     if (!S.replicateToOtherClass) {
       return false;
@@ -928,6 +967,12 @@ window.SIAPExecutor = (() => {
 
     if (!safePlan || typeof safePlan !== 'object') {
       throw new Error('Plano inválido.');
+    }
+
+    // O SIAP só disponibiliza a opção OUTRAS quando há turma de destino elegível.
+    // A validação antecipada evita preencher uma aula que não poderá ser replicada.
+    if (saveAndNext && S.replicateToOtherClass) {
+      assertOtherClassReplicationAvailable();
     }
 
     // O SIAP pode levar alguns segundos para terminar de montar selects, árvore e campos.
@@ -1788,11 +1833,11 @@ window.SIAPExecutor = (() => {
   async function applyNextPlan() {
     try {
       if (!Array.isArray(S.generatedPlans) || !S.generatedPlans.length) {
-        return alert('Primeiro gere os planejamentos.');
+        return alertOrThrowFromHeadless('Primeiro gere os planejamentos.');
       }
 
       if (S.currentPlanIndex >= S.generatedPlans.length) {
-        return alert('Todas as aulas já foram aplicadas.');
+        return alertOrThrowFromHeadless('Todas as aulas já foram aplicadas.');
       }
 
       if (!isContextCompatible()) {
@@ -1826,7 +1871,7 @@ window.SIAPExecutor = (() => {
 
       if (S.currentPlanIndex >= S.generatedPlans.length) {
         L.log('Todas as aulas foram aplicadas.');
-        alert('Todas as aulas foram aplicadas.');
+        notifyCompletion('Todas as aulas foram aplicadas.');
         clearPendingPreviousLessonNumber();
         clearPendingNextPlanIndex();
         ST.clearPlanExecutionState();
@@ -1838,8 +1883,9 @@ window.SIAPExecutor = (() => {
     } catch (err) {
       console.error(err);
       L.log(`Erro ao aplicar: ${err.message || err}`);
-      alert(`Erro ao aplicar aula: ${err.message || err}`);
       clearPendingNextPlanIndex();
+      if (window.__SIAP_SAAS_HEADLESS__) throw err;
+      alert(`Erro ao aplicar aula: ${err.message || err}`);
     } finally {
       setRunningState(false);
     }
@@ -1848,7 +1894,7 @@ window.SIAPExecutor = (() => {
   async function applyAllPlans() {
     try {
       if (!Array.isArray(S.generatedPlans) || !S.generatedPlans.length) {
-        return alert('Primeiro gere os planejamentos.');
+        return alertOrThrowFromHeadless('Primeiro gere os planejamentos.');
       }
 
       if (S.currentPlanIndex >= S.generatedPlans.length) {
@@ -1920,7 +1966,7 @@ window.SIAPExecutor = (() => {
         L.log('Todas as aulas foram aplicadas com sucesso.');
         ST.setAutoMode(false);
         ST.saveState();
-        alert('Todas as aulas foram aplicadas.');
+        notifyCompletion('Todas as aulas foram aplicadas.');
         clearPendingPreviousLessonNumber();
         clearPendingNextPlanIndex();
         ST.clearPlanExecutionState();
@@ -1936,12 +1982,13 @@ window.SIAPExecutor = (() => {
     } catch (err) {
       console.error(err);
       L.log(`Erro no automático: ${err.message || err}`);
-      alert(`Erro no processamento automático: ${err.message || err}`);
       clearPendingPreviousLessonNumber();
       clearPendingNextPlanIndex();
       ST.setAutoMode(false);
       setRunningState(false);
-      return;
+      if (window.__SIAP_SAAS_HEADLESS__) throw err;
+      alert(`Erro no processamento automático: ${err.message || err}`);
+      return false;
     } finally {
       setRunningState(false);
     }
