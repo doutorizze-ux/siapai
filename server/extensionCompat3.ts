@@ -581,6 +581,9 @@ export function registerExtension3Routes(expressRouter: Router): void {
       });
     } catch (error) {
       console.error("[Extensão 3.2] erro em /ai/generate.php:", error);
+      const message = error instanceof Error && error.message
+        ? error.message
+        : "Falha na geração administrada. Tente novamente.";
       return res.status(500).json({
         id: `chatcmpl-${nanoid(12)}`,
         model: "siapai-gemini",
@@ -594,10 +597,8 @@ export function registerExtension3Routes(expressRouter: Router): void {
             },
           ],
         },
-        error: {
-          type: "server_error",
-          message: error instanceof Error ? error.message : "Falha na geração",
-        },
+        error: "server_error",
+        message,
       });
     }
   });
