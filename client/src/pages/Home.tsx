@@ -4,6 +4,8 @@ import { CheckCircle2, Loader2, Rocket, CalendarCheck, BookOpenCheck, Copy, Star
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
+const CHROME_WEB_STORE_URL = "https://chromewebstore.google.com/detail/dcifappjgnkilhdiefljlooinnpeakmh";
+
 const FEATURES = [
   {
     icon: Rocket,
@@ -44,7 +46,7 @@ const FAQS = [
   },
   {
     q: "Como instalo a extensão?",
-    a: "Após a confirmação do pagamento, você recebe por e-mail seu código de acesso (formato PP-XXXXXXXX). Baixe o arquivo da extensão e carregue no Chrome/Edge em modo desenvolvedor. Ao abrir o SIAP, a extensão pede seu e-mail cadastrado, valida automaticamente no servidor e libera todos os módulos."
+    a: "Instale pelo botão disponível na Chrome Web Store. Depois da confirmação do pagamento, abra o SIAP e informe seu e-mail cadastrado para validar a licença e liberar os módulos."
   },
   {
     q: "Preciso deixar o computador ligado durante a execução?",
@@ -75,6 +77,9 @@ function Header() {
           <a href="#faq">FAQ</a>
         </nav>
         <div className="flex items-center gap-2">
+          <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noreferrer" className="hidden lg:inline-flex">
+            <Button variant="outline" size="sm">Instalar extensão ↗</Button>
+          </a>
           <Link href="/validar">
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
               Validar licença
@@ -112,12 +117,18 @@ function Hero() {
                 Começar agora
               </Button>
             </a>
-            <a href="#funcionalidades">
+            <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noreferrer">
               <Button size="lg" variant="outline" className="text-base px-7 bg-background">
+                Instalar no Chrome ↗
+              </Button>
+            </a>
+            <a href="#funcionalidades">
+              <Button size="lg" variant="ghost" className="text-base px-7">
                 Ver como funciona
               </Button>
             </a>
           </div>
+          <p className="mt-3 text-sm text-muted-foreground">Já tem licença? Instale pela Chrome Web Store e entre no SIAP com seu e-mail cadastrado.</p>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Acesso até 31/12</span>
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Sem mensalidade</span>
@@ -171,7 +182,7 @@ function Features() {
 function HowItWorks() {
   const steps = [
     { step: "1", title: "Faça o pagamento via Pix", desc: "Pagamento único com liberação automática. Você recebe seu código de acesso na hora." },
-    { step: "2", title: "Instale a extensão no Chrome/Edge", desc: "Carregue o arquivo da extensão no navegador (leva 1 minuto) e ative seu código de licença." },
+    { step: "2", title: "Instale pela Chrome Web Store", desc: "Use o botão de instalação, adicione a extensão ao Chrome e ative-a com o seu e-mail de licença." },
     { step: "3", title: "Abra o SIAP e clique em executar", desc: "O painel lateral aparece no próprio SIAP. Escolha a tarefa, selecione turmas e meses e deixe o robô trabalhar." },
   ];
   return (
@@ -280,6 +291,7 @@ function Footer() {
           SiapAI
         </span>
         <div className="flex items-center gap-5">
+          <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noreferrer">Instalar extensão</a>
           <Link href="/validar">Validar licença</Link>
           <Link href="/checkout">Comprar</Link>
           <span>© {new Date().getFullYear()} SiapAI</span>
