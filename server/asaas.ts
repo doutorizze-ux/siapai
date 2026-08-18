@@ -45,6 +45,15 @@ export interface AsaasPayment {
   externalReference?: string;
 }
 
+export interface AsaasHostedCheckout {
+  id: string;
+  link: string;
+  status: "ACTIVE" | "CANCELED" | "EXPIRED" | "PAID" | string;
+  billingTypes?: string[];
+  chargeTypes?: string[];
+  externalReference?: string;
+}
+
 export interface AsaasPixQrCode {
   /** Código Pix no formato copia-e-cola (EMV). */
   payload: string;
@@ -114,6 +123,55 @@ export interface CreatePixPaymentInput {
   dueDate?: string; // YYYY-MM-DD
 }
 
+export interface CreateHostedCheckoutInput {
+  name: string;
+  email: string;
+  cpfCnpj: string;
+  value: number;
+  externalReference: string;
+  description: string;
+  minutesToExpire?: number;
+}
+
+/**
+ * Cria o Checkout hospedado do Asaas com Pix e cartão no mesmo link. A página
+ * do Asaas coleta o cartão e informa CVV, vencimento e demais dados sensíveis;
+ * o SiapAI recebe apenas os eventos financeiros pelo webhook.
+ */
+export async function asaasCreateHostedCheckout(input: CreateHostedCheckoutInput): Promise<AsaasHostedCheckout> {
+  const body = await asaasRequest("/checkouts", {
+    method: "POST",
+    body: JSON.stringify({
+      billingTypes: ["PIX", "CREDIT_CARD"],
+      chargeTypes: ["DETACHED"],
+      minutesToExpire: input.minutesToExpire ?? 1440,
+      externalReference: input.externalReference,
+      items: [{
+        externalReference: "siapai-plano-semestral",
+        name: "SiapAI — Plano semestral",
+        description: input.description,
+        quantity: 1,
+        value: input.value,
+      }],
+      customerData: {
+        name: input.name,
+        cpfCnpj: input.cpfCnpj,
+        email: input.email,
+      },
+    }),
+  });
+  const checkout = body as AsaasHostedCheckout;
+  if (!checkout.id || !checkout.link) {
+    throw new Error("O Asaas não retornou o link do checkout seguro.");
+  }
+  return checkout;
+}
+
+export async function asaasGetHostedCheckout(checkoutId: string): Promise<AsaasHostedCheckout> {
+  const body = await asaasRequest(`/checkouts/${checkoutId}`);
+  return body as AsaasHostedCheckout;
+}
+
 export async function asaasCreatePixPayment(input: CreatePixPaymentInput): Promise<AsaasPayment> {
   const body = await asaasRequest("/payments", {
     method: "POST",
@@ -123,7 +181,7 @@ export async function asaasCreatePixPayment(input: CreatePixPaymentInput): Promi
       value: input.value,
       dueDate: input.dueDate ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       externalReference: input.externalReference,
-      description: input.description ?? "PlanejaPro SIAP - Acesso anual",
+      description: input.description ?? "SiapAI - Plano semestral",
     }),
   });
   return body as AsaasPayment;

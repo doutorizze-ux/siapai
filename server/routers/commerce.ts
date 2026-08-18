@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { generateLessonPlans, generatePei } from "../llm";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../_core/trpc";
-import { asaasCreateCustomer, asaasCreatePixPayment, asaasGetCustomerByEmail, asaasGetPayment, asaasGetPixQrCode, formatCentsToBRL, getConfiguredAsaasMode } from "../asaas";
+import { asaasCreateHostedCheckout, asaasGetHostedCheckout, asaasGetPayment, formatCentsToBRL, getConfiguredAsaasMode } from "../asaas";
 import {
   activateLicenseByPayment,
   createLicense,
@@ -16,6 +16,7 @@ import {
   updateProductSettings,
 } from "../db.licenses";
 import { getSemesterExpiryDate, getSemesterExpiryLabel, SEMESTER_PLAN_DESCRIPTION } from "../licensePeriod";
+import { normalizeSiapPaymentMethod, shouldActivateLicenseForPaymentEvent, shouldDeactivateLicenseForPaymentEvent } from "../paymentLifecycle";
 
 const emailSchema = z.string().email("E-mail inválido").trim().toLowerCase();
 
@@ -101,7 +102,7 @@ export const commerceRouter = router({
       }
     }),
 
-  /** Cria cobrança Pix no Asaas e reserva a licença */
+  /** Cria o checkout hospedado do Asaas com Pix e cartão e reserva a licença. */
   createCheckout: publicProcedure
     .input(
       z.object({
@@ -110,7 +111,7 @@ export const commerceRouter = router({
         cpfCnpj: z
           .string()
           .trim()
-          .min(11, "CPF ou CNPJ é obrigatório para gerar o Pix (o Asaas exige o documento)")
+          .min(11, "CPF ou CNPJ é obrigatório para gerar a cobrança segura (o Asaas exige o documento)")
           .max(18),
       }),
     )
@@ -123,20 +124,16 @@ export const commerceRouter = router({
         });
       }
 
-      // Evitar checkout duplicado pendente
+      // Evitar checkout hospedado duplicado pendente para o mesmo e-mail.
       const existing = await getLicensesByEmail(input.email);
       const pending = existing.find((r) => r.active === 0);
       if (pending && pending.paymentId) {
         try {
-          const payment = await asaasGetPayment(pending.paymentId);
-          if (payment.status === "PENDING" || payment.status === "RECEIVED") {
-            const pix = await asaasGetPixQrCode(payment.id);
+          const checkout = await asaasGetHostedCheckout(pending.paymentId);
+          if (checkout.status === "ACTIVE" && checkout.link) {
             return {
-              paymentId: payment.id,
-              pixQrCode: pix.payload,
-              pixQrImage: pix.encodedImage ?? "",
-              value: payment.value,
-              status: payment.status,
+              checkoutId: checkout.id,
+              checkoutUrl: checkout.link,
               alreadyExists: true,
             };
           }
@@ -157,24 +154,18 @@ export const commerceRouter = router({
       });
 
       try {
-        let customer = await asaasGetCustomerByEmail(input.email);
-        if (!customer) {
-          customer = await asaasCreateCustomer(input.name, input.email, input.cpfCnpj);
-        }
-        const payment = await asaasCreatePixPayment({
-          customer: { id: customer.id },
+        const checkout = await asaasCreateHostedCheckout({
+          name: input.name,
+          email: input.email,
+          cpfCnpj: input.cpfCnpj,
           value: settings.priceCents / 100,
           externalReference: `${extRef}|${license.id}`,
           description: `${settings.name} - Plano semestral até ${getSemesterExpiryLabel()}`,
         });
-        await updateLicense(license.id, { paymentId: payment.id, customerId: customer.id });
-        const pix = await asaasGetPixQrCode(payment.id);
+        await updateLicense(license.id, { paymentId: checkout.id });
         return {
-          paymentId: payment.id,
-          pixQrCode: pix.payload,
-          pixQrImage: pix.encodedImage ?? "",
-          value: payment.value,
-          status: payment.status,
+          checkoutId: checkout.id,
+          checkoutUrl: checkout.link,
           alreadyExists: false,
         };
       } catch (error) {
@@ -202,6 +193,7 @@ export const commerceRouter = router({
       return {
         status: payment.status,
         value: payment.value,
+        paymentMethod: normalizeSiapPaymentMethod(payment.billingType),
         pixQrCode: payment.pixQrCode ?? "",
       };
     }),
@@ -215,7 +207,7 @@ export const commerceRouter = router({
 });
 
 /**
- * Webhook do Asaas: PAYMENT_RECEIVED libera a licença automaticamente.
+ * Webhook do Asaas: Pix recebido ou cartão confirmado liberam a licença automaticamente.
  * Chamado por http://<host>/api/webhook/asaas (rota Express registrada em index.ts)
  */
 export async function handleAsaasWebhook(body: unknown) {
@@ -226,8 +218,8 @@ export async function handleAsaasWebhook(body: unknown) {
   const log = (msg: string) => console.log(`[Asaas webhook] ${msg}`);
   log(`evento=${data?.event} paymentId=${data?.payment?.id}`);
 
-  // Asaas pode enviar o evento várias vezes (retry) — idempotente: só ativa se ainda pendente
-  if (data.event === "PAYMENT_RECEIVED" && data.payment?.id) {
+  // Asaas pode enviar o evento várias vezes (retry) — idempotente: só ativa se ainda pendente.
+  if (shouldActivateLicenseForPaymentEvent(data.event) && data.payment?.id) {
     const paymentId = data.payment.id;
     const customerId = data.payment.customer;
 
@@ -277,6 +269,21 @@ export async function handleAsaasWebhook(body: unknown) {
       }
     }
     log(`nenhuma licença localizada para paymentId=${paymentId}`);
+  }
+
+  // Se o Asaas reprovar a análise de risco ou estornar a cobrança depois da
+  // confirmação, revogar a licença vinculada ao pagamento para evitar acesso indevido.
+  if (shouldDeactivateLicenseForPaymentEvent(data.event) && data.payment?.id) {
+    const paymentId = data.payment.id;
+    const licenseIdMatch = (data.payment.externalReference ?? "").split("|")[1];
+    const all = await getAllLicenses();
+    const license = licenseIdMatch && /^\d+$/.test(licenseIdMatch)
+      ? all.find((row) => String(row.id) === licenseIdMatch)
+      : all.find((row) => row.paymentId === paymentId);
+    if (license?.active === 1) {
+      await updateLicense(license.id, { active: 0, paymentId });
+      log(`licença ${license.id} revogada por evento ${data.event}`);
+    }
   }
 }
 

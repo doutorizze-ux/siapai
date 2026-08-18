@@ -65,7 +65,37 @@ describe("handleAsaasWebhook", () => {
     expect(db.updateLicense).toHaveBeenCalledWith(55, expect.objectContaining({ active: 1 }));
   });
 
-  it("ignora eventos que não sejam PAYMENT_RECEIVED", async () => {
+  it("ativa a licença quando o cartão é confirmado pelo Asaas", async () => {
+    (db.getAllLicenses as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 81, active: 0, email: "cartao@escola.com", code: "PP-CARD", customerId: null, paymentId: "__pending__" },
+    ]);
+
+    await handleAsaasWebhook({
+      event: "PAYMENT_CONFIRMED",
+      payment: { id: "pay_card_1", customer: "cus_card", externalReference: "pp-2000|81", status: "CONFIRMED" },
+    });
+
+    expect(db.updateLicense).toHaveBeenCalledWith(81, expect.objectContaining({
+      active: 1,
+      paymentId: "pay_card_1",
+      customerId: "cus_card",
+    }));
+  });
+
+  it("revoga a licença se o Asaas reprovar a análise de risco do cartão", async () => {
+    (db.getAllLicenses as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 91, active: 1, email: "risco@escola.com", code: "PP-RISCO", customerId: "cus_risk", paymentId: "pay_risk" },
+    ]);
+
+    await handleAsaasWebhook({
+      event: "PAYMENT_REPROVED_BY_RISK_ANALYSIS",
+      payment: { id: "pay_risk", customer: "cus_risk", externalReference: "pp-3000|91", status: "REPROVED" },
+    });
+
+    expect(db.updateLicense).toHaveBeenCalledWith(91, { active: 0, paymentId: "pay_risk" });
+  });
+
+  it("ignora eventos que não representem aprovação ou revogação", async () => {
     await handleAsaasWebhook({ event: "PAYMENT_CONFIRMATION_WAITING", payment: { id: "pay_123" } });
     expect(db.updateLicense).not.toHaveBeenCalled();
   });
