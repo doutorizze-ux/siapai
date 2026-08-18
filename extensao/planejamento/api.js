@@ -41,9 +41,12 @@ window.SIAPApi = (() => {
     return getStorageValue(name);
   }
 
+  // O Revisa é um serviço próprio do SiapAI. Não use configurações residuais
+  // da extensão-fonte, pois elas podem apontar para um serviço legado sem catálogo.
+  const SIAPAI_API_BASE = 'https://siapai.online/api';
+
   function getServerApiBase() {
-    const value = String(getSharedGlobal('SIAP_SAAS_API_BASE') || '').trim();
-    return value || 'https://go1.hdsites.net.br/api';
+    return SIAPAI_API_BASE;
   }
 
   function getServerToken() {
