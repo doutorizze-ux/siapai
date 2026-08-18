@@ -555,7 +555,7 @@ export function registerExtension3Routes(expressRouter: Router): void {
       // esse contexto a um tema genérico faz o resultado perder habilidades e
       // conteúdos clicáveis do SIAP.
       const completion = await invokeLLM({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.6-flash",
         messages,
         max_tokens: maxTokens,
         response_format: { type: "json_object" },
@@ -567,7 +567,7 @@ export function registerExtension3Routes(expressRouter: Router): void {
       }
       return res.json({
         id: `chatcmpl-${nanoid(12)}`,
-        model: completion.model || "gemini-2.5-flash",
+        model: completion.model || "gemini-3.6-flash",
         created: Math.floor(Date.now() / 1000),
         data: {
           choices: [
