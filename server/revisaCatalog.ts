@@ -115,11 +115,13 @@ function catalogEntry(source: PublicCatalog, progressBySequence: Map<number, num
   return { ...entry, blocoSequences };
 }
 
-export async function getPublicRevisaCatalog(context: RevisaContext, loadCompleted: (sequenceId: number) => Promise<number[]>) {
+export async function getPublicRevisaCatalog(context: RevisaContext, loadCompleted: (sequenceId: number, materialId?: number, componentId?: number) => Promise<number[]>) {
   const source = findPublicCatalog(context);
   if (!source) return { disponivel: false, materiais: [], contextKey: contextKey(context), reason: unavailableReason(context) };
   const progressBySequence = new Map<number, number[]>();
-  for (const block of source.blocos) for (const sequence of block.sequencias) progressBySequence.set(sequence.id, await loadCompleted(sequence.id));
+  for (const block of source.blocos) for (const sequence of block.sequencias) {
+    progressBySequence.set(sequence.id, await loadCompleted(sequence.id, source.material.id, source.componente.id));
+  }
   return { disponivel: true, materiais: [catalogEntry(source, progressBySequence)], contextKey: contextKey(context), fonte: { titulo: "Revisa Goiás — fonte oficial", url: source.material.fonte_oficial } };
 }
 

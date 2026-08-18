@@ -409,7 +409,12 @@ export function registerExtension3Routes(expressRouter: Router): void {
       );
 
       if (action === "catalogo") {
-        const data = await getPublicRevisaCatalog(ctx, async (sequenceId) => getCompletedRevisaActivities(decoded.licenseId, 9003001, 90031, sequenceId));
+        const data = await getPublicRevisaCatalog(ctx, async (sequenceId, materialId, componentId) => getCompletedRevisaActivities(
+          decoded.licenseId,
+          Number(materialId || 0),
+          Number(componentId || 0),
+          sequenceId,
+        ));
         return res.json({ ok: true, data });
       }
       if (action === "trecho") {
