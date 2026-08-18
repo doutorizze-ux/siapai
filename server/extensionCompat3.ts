@@ -16,8 +16,8 @@
 import type { Router, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { getLicenseByCode, getLicensesByEmail, isLicenseActive, updateLicense } from "./db.licenses";
-import { generateLessonPlans, generatePei } from "./llm";
-import { invokeLLM } from "./_core/llm";
+import { generatePei } from "./llm";
+import { invokeLLM, type Message } from "./_core/llm";
 import { nanoid } from "nanoid";
 import { getCompletedRevisaActivities, registerCompletedRevisaActivities } from "./db.revisa";
 import { getPublicRevisaCatalog, getPublicRevisaExcerpt, isPublicRevisaMaterial } from "./revisaCatalog";
@@ -502,12 +502,40 @@ export function registerExtension3Routes(expressRouter: Router): void {
         max_tokens?: number;
         lesson_count?: number;
         lessonCount?: number;
-        messages?: Array<{ role: string; content: string }>;
+        messages?: Array<{ role?: unknown; content?: unknown }>;
       };
-      const messages = Array.isArray(body.messages) ? body.messages : [];
-      const systemMsg = messages.find((m) => m.role === "system");
-      const userMsgs = messages.filter((m) => m.role === "user");
-      const userContent = userMsgs.map((m) => m.content).join("\n\n");
+      const messages: Message[] = (Array.isArray(body.messages) ? body.messages : []).flatMap((message): Message[] => {
+        const role = String(message?.role || "");
+        if (!["system", "user", "assistant"].includes(role)) return [];
+
+        if (typeof message.content === "string") {
+          const content = message.content.trim();
+          return content ? [{ role: role as Message["role"], content }] : [];
+        }
+
+        if (!Array.isArray(message.content)) return [];
+        const content = message.content.flatMap((part): Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string; detail: "high" } }> => {
+          if (!part || typeof part !== "object") return [];
+          const candidate = part as { type?: unknown; text?: unknown; image_url?: { url?: unknown; detail?: unknown } };
+          if (candidate.type === "text" && typeof candidate.text === "string" && candidate.text.trim()) {
+            return [{ type: "text", text: candidate.text.trim() }];
+          }
+          const imageUrl = candidate.image_url?.url;
+          if (candidate.type === "image_url" && typeof imageUrl === "string" && /^data:image\/(?:png|jpeg|webp);base64,/i.test(imageUrl) && imageUrl.length <= 20_000_000) {
+            return [{ type: "image_url", image_url: { url: imageUrl, detail: "high" } }];
+          }
+          return [];
+        });
+        return content.length ? [{ role: role as Message["role"], content }] : [];
+      });
+
+      if (!messages.length) {
+        return res.status(400).json({
+          ok: false,
+          error: "mensagens_ausentes",
+          message: "O contexto do planejamento não foi informado.",
+        });
+      }
 
       const requestedLessonCount = Math.min(
         10,
@@ -517,38 +545,35 @@ export function registerExtension3Routes(expressRouter: Router): void {
         )
       );
 
-      // A extensão espera um objeto { aulas: [...] } e nomes em português.
-      // A camada de IA retorna um array com chaves em inglês; esta tradução mantém
-      // o contrato compatível tanto para o painel individual quanto para o painel de turma.
-      const plans = await generateLessonPlans({
-        skills: [],
-        subject: "",
-        grade: "",
-        lessonCount: requestedLessonCount,
-        customTopic: userContent,
-      });
+      const maxTokens = Math.min(
+        32000,
+        Math.max(3500, Math.floor(Number(body.max_tokens) || requestedLessonCount * 900)),
+      );
 
-      const compatiblePlans = plans.map((plan, index) => ({
-        titulo: String(plan.title || `Aula ${index + 1}`),
-        habilidades: String(plan.skills || "")
-          .split(/\n|;|•/)
-          .map((item) => item.trim())
-          .filter(Boolean),
-        conteudos: [],
-        conteudoPersonalizado: String(plan.content || ""),
-        metodologia: String(plan.methodology || ""),
-        avaliacao: String(plan.assessment || ""),
-      }));
-      const contentJson = JSON.stringify({ aulas: compatiblePlans }, null, 1);
+      // O prompt da extensão contém catálogo, árvore curricular e regras de
+      // pós-processamento. Ele deve chegar íntegro ao modelo administrado: reduzir
+      // esse contexto a um tema genérico faz o resultado perder habilidades e
+      // conteúdos clicáveis do SIAP.
+      const completion = await invokeLLM({
+        model: "gemini-2.5-flash",
+        messages,
+        max_tokens: maxTokens,
+        response_format: { type: "json_object" },
+      });
+      const content = completion.choices?.[0]?.message?.content;
+      const contentJson = typeof content === "string" ? content.trim() : JSON.stringify(content || {});
+      if (!contentJson) {
+        throw new Error("A IA não retornou conteúdo para o planejamento.");
+      }
       return res.json({
         id: `chatcmpl-${nanoid(12)}`,
-        model: body.model || "siapai-gemini",
+        model: completion.model || "gemini-2.5-flash",
         created: Math.floor(Date.now() / 1000),
         data: {
           choices: [
             {
               index: 0,
-              finish_reason: "stop",
+              finish_reason: completion.choices?.[0]?.finish_reason || "stop",
               message: { role: "assistant", content: contentJson },
             },
           ],
