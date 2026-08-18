@@ -386,7 +386,7 @@ function renderRevisaCatalog(catalog = null) {
     byId('revisaBody').hidden = true;
     const reason = String(revisaState.catalog.reason || '').trim();
     if (materialInfo) materialInfo.textContent = reason || 'Nenhum Revisa cadastrado para esta série e disciplina.';
-    setRevisaStatus(reason ? 'Revisa disponível somente na edição de uma aula.' : 'Planejamento normal disponível.', 'muted');
+    setRevisaStatus(reason || 'Nenhum material Revisa está disponível para esta aula; o planejamento normal continua disponível.', 'muted');
     revisaState.selection = null;
     return;
   }
@@ -527,12 +527,15 @@ async function refreshRevisaCatalog() {
     const catalog = await engine('REVISA_CATALOG', {}, 'planejamento', 30000);
     renderRevisaCatalog(catalog);
   } catch (error) {
+    const detail = String(error?.message || '').trim();
     renderRevisaCatalog({
       disponivel: false,
       materiais: [],
-      reason: 'Não foi possível consultar o Revisa agora. Abra uma aula específica e clique em Atualizar.'
+      reason: detail
+        ? `Não foi possível consultar o Revisa: ${detail}`
+        : 'Não foi possível consultar o Revisa agora. Abra uma aula específica e clique em Atualizar.'
     });
-    setRevisaStatus('Não foi possível carregar o Revisa.', 'error');
+    setRevisaStatus(detail ? `Falha ao consultar o Revisa: ${detail}` : 'Não foi possível carregar o Revisa.', 'error');
     console.warn('[SiapAI] Catálogo Revisa falhou:', error?.message || error);
   } finally {
     revisaState.busy = false;
