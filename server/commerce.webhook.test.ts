@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { handleAsaasWebhook } from "./routers/commerce";
 import * as db from "./db.licenses";
+import { getSemesterExpiryDate } from "./licensePeriod";
 
 vi.mock("./db.licenses", async (importOriginal) => {
   const actual = await importOriginal<typeof db>();
@@ -32,6 +33,7 @@ describe("handleAsaasWebhook", () => {
     expect(db.updateLicense).toHaveBeenCalledWith(42, {
       active: 1,
       startDate: expect.any(Date),
+      expiresAt: getSemesterExpiryDate(),
       paymentId: "pay_123",
       customerId: "cus_9",
     });

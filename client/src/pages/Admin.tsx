@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
@@ -123,13 +122,11 @@ function PriceManager() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [description, setDescription] = useState("");
 
   const openEdit = () => {
     if (settings) {
       setName(settings.name);
       setPrice(String(settings.priceCents / 100));
-      setDescription(settings.description ?? "");
       setOpen(true);
     }
   };
@@ -139,7 +136,7 @@ function PriceManager() {
     const cents = Math.round(parseFloat(price.replace(",", ".")) * 100);
     if (!name || isNaN(cents) || cents <= 0) return;
     try {
-      await update.mutateAsync({ name, priceCents: cents, description });
+      await update.mutateAsync({ name, priceCents: cents });
       utils.admin.getProductSettings.invalidate();
       refetch();
       setOpen(false);
@@ -174,10 +171,6 @@ function PriceManager() {
               <div className="space-y-1.5">
                 <Label htmlFor="pprice">Preço (R$)</Label>
                 <Input id="pprice" type="number" step="0.01" min="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="pdesc">Descrição (exibe no checkout)</Label>
-                <Textarea id="pdesc" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
               </div>
               <Button type="submit" className="w-full" disabled={update.isPending}>
                 {update.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -225,14 +218,11 @@ function LicenseManager() {
 
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [days, setDays] = useState("365");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const expires = new Date();
-      expires.setDate(expires.getDate() + (parseInt(days) || 365));
-      const res = await create.mutateAsync({ email, expiresAt: expires.toISOString().slice(0, 10) });
+      const res = await create.mutateAsync({ email });
       if (res.code) {
         await navigator.clipboard.writeText(res.code);
         toast.success(`Licença criada! Código ${res.code} copiado.`);
@@ -274,10 +264,7 @@ function LicenseManager() {
                 <Label htmlFor="lemail">E-mail do cliente</Label>
                 <Input id="lemail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="cliente@exemplo.com" />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ldays">Validade (dias)</Label>
-                <Input id="ldays" type="number" min="1" value={days} onChange={(e) => setDays(e.target.value)} required />
-              </div>
+              <p className="rounded-lg bg-secondary p-3 text-sm text-muted-foreground">A licença seguirá a validade do semestre-calendário atual: até 30/06 ou 31/12.</p>
               <Button type="submit" className="w-full" disabled={create.isPending}>
                 {create.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 Gerar licença

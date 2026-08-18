@@ -15,6 +15,7 @@ import type { Router, Request, Response } from "express";
 import { generateLessonPlans, type LessonPlanItem } from "./llm";
 import { getLicenseByCode, getLicensesByEmail, isLicenseActive } from "./db.licenses";
 import { nanoid } from "nanoid";
+import { getSemesterExpiryDate } from "./licensePeriod";
 
 export const EXTENSION_API_KEY =
   process.env.EXTENSION_API_KEY || "a8c9dfb7948947528b9ae946af499b7605c24e91595dc4c1f9608d41";
@@ -86,7 +87,7 @@ export function registerExtensionRoutes(expressRouter: Router): void {
         ativo: true,
         plano: "admin", // licenças nossas dão acesso completo
         nome: license.email?.split("@")[0] || "Usuário",
-        data_expiracao: license.expiresAt ? new Date(license.expiresAt).toISOString().slice(0, 10) : "2026-12-31",
+        data_expiracao: license.expiresAt ? new Date(license.expiresAt).toISOString().slice(0, 10) : getSemesterExpiryDate(),
       });
     } catch (error) {
       console.error("[Extensão] erro em /api/validar:", error);

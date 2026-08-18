@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { CheckCircle2, Loader2, Rocket, CalendarCheck, BookOpenCheck, Copy, Star, Award, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Loader2, Rocket, CalendarCheck, BookOpenCheck, Copy, Star, Award, ShieldCheck, FileCheck2, ScanLine, ListChecks, MousePointerClick } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
@@ -37,12 +37,17 @@ const FEATURES = [
     title: "PEI com IA",
     desc: "Gere o PEI (Plano Educacional Individualizado) automaticamente: potencialidades, expectativas, necessidades e estratégias — preenchido no SIAP em um clique.",
   },
+  {
+    icon: FileCheck2,
+    title: "Correção de avaliações",
+    desc: "Envie o gabarito e as folhas numeradas. A IA monta uma prévia auditável de cada aluno para você conferir antes de preencher a grade do SIAP.",
+  },
 ];
 
 const FAQS = [
   {
     q: "O acesso é vitalício?",
-    a: "O acesso vale até 31/12 do ano corrente (ciclo anual). É um pagamento único, sem mensalidade: se você renovar no próximo ano, paga apenas o valor vigente.",
+    a: "Não. O plano é semestral por calendário: compras confirmadas de janeiro a junho valem até 30/06; compras confirmadas de julho a dezembro valem até 31/12. É pagamento único, sem mensalidade.",
   },
   {
     q: "Como instalo a extensão?",
@@ -73,6 +78,7 @@ function Header() {
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
           <a href="#funcionalidades">Funcionalidades</a>
           <a href="#como-funciona">Como funciona</a>
+          <a href="#correcao-avaliacoes">Correção de avaliações</a>
           <a href="#preco">Preço</a>
           <a href="#faq">FAQ</a>
         </nav>
@@ -109,7 +115,7 @@ function Hero() {
           </h1>
           <p className="mt-5 text-lg text-muted-foreground max-w-xl">
             O SiapAI é uma extensão para o navegador que gera seu planejamento com IA e preenche o SIAP
-            automaticamente — aulas, frequência, conteúdo programático e PEI.
+            automaticamente — aulas, frequência, conteúdo programático, PEI e a prévia segura para correção de avaliações.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <a href="#preco">
@@ -130,7 +136,7 @@ function Hero() {
           </div>
           <p className="mt-3 text-sm text-muted-foreground">Já tem licença? Instale pela Chrome Web Store e entre no SIAP com seu e-mail cadastrado.</p>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Acesso até 31/12</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Validade por semestre</span>
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Sem mensalidade</span>
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Liberação automática via Pix</span>
           </div>
@@ -205,6 +211,38 @@ function HowItWorks() {
   );
 }
 
+function GradeCorrection() {
+  const steps = [
+    { icon: FileCheck2, title: "1. Envie o gabarito", desc: "Envie a foto do gabarito da avaliação. O módulo identifica as respostas corretas das questões." },
+    { icon: ScanLine, title: "2. Envie as folhas numeradas", desc: "Envie as folhas de resposta dos alunos com o número escrito no campo Nº. É possível enviar até 60 por vez." },
+    { icon: ListChecks, title: "3. Revise a prévia", desc: "O SiapAI mostra os acertos por aluno. Folhas com número ilegível, marcação ambígua ou resposta incompleta ficam sinalizadas para conferência." },
+    { icon: MousePointerClick, title: "4. Preencha com sua confirmação", desc: "Depois da revisão, use “Preencher grade pela prévia”. O módulo marca a grade e as presenças necessárias, mas não salva o formulário do SIAP automaticamente." },
+  ];
+
+  return (
+    <section id="correcao-avaliacoes" className="py-16 md:py-24 scroll-mt-14">
+      <div className="container">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"><Award className="h-3.5 w-3.5" /> Novo módulo SiapAI</span>
+          <h2 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight">Correção de avaliações com prévia segura</h2>
+          <p className="mt-3 text-lg text-muted-foreground">Transforme gabaritos e folhas numeradas em uma prévia conferível antes de lançar as notas no SIAP.</p>
+        </div>
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {steps.map((step, index) => {
+            const Icon = step.icon;
+            return <article key={step.title} className="rounded-2xl border bg-card p-6 shadow-sm">
+              <div className="mb-5 flex items-center justify-between"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10"><Icon className="h-6 w-6 text-primary" /></div><span className="text-sm font-bold text-primary/50">0{index + 1}</span></div>
+              <h3 className="font-bold text-lg">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.desc}</p>
+            </article>;
+          })}
+        </div>
+        <p className="mx-auto mt-6 max-w-3xl rounded-xl border border-primary/20 bg-primary/5 p-4 text-center text-sm text-foreground"><strong>Você continua no controle:</strong> o módulo nunca inventa respostas nem salva o SIAP sem a sua confirmação final.</p>
+      </div>
+    </section>
+  );
+}
+
 function Pricing() {
   const { data, isLoading } = trpc.commerce.productInfo.useQuery();
   const price = data ? (data.priceCents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "59,90";
@@ -215,19 +253,19 @@ function Pricing() {
         <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">Um pagamento único, sem mensalidade</h2>
           <p className="mt-3 text-muted-foreground">
-            Pague uma vez e use o ano inteiro. Liberação automática após a confirmação do Pix.
+            Pague uma vez e use até o fim do semestre-calendário. Liberação automática após a confirmação do Pix.
           </p>
         </div>
         <div className="rounded-3xl border bg-card shadow-lg overflow-hidden">
           <div className="bg-gradient-to-br from-primary to-[#0a8f78] p-6 text-primary-foreground">
-            <p className="text-sm font-semibold opacity-90">{data?.name ?? "SiapAI"} · Acesso anual</p>
+            <p className="text-sm font-semibold opacity-90">{data?.name ?? "SiapAI"} · Plano semestral</p>
             <p className="mt-3 flex items-baseline gap-2">
               <span className="text-5xl font-extrabold tracking-tight">
                 {isLoading ? <Loader2 className="h-10 w-10 animate-spin" /> : `R$ ${price}`}
               </span>
             </p>
             <p className="mt-2 text-sm opacity-90">
-              {data?.description ?? "Acesso ao SiapAI até 31/12. Pagamento único, sem mensalidade."}
+              Plano semestral com validade até o fim do semestre de confirmação do pagamento.
             </p>
           </div>
           <ul className="p-6 space-y-3">
@@ -236,6 +274,7 @@ function Pricing() {
               "Frequência de aulas automática (por mês)",
               "Conteúdo programático em lote",
               "PEI completo gerado por IA",
+              "Correção de avaliações com prévia auditável",
               "Reclique automático contra instabilidade do SIAP",
               "Ativação pelo seu e-mail de cadastro",
             ].map((item) => (
@@ -313,6 +352,7 @@ export default function Home() {
         <Hero />
         <Features />
         <HowItWorks />
+        <GradeCorrection />
         <Pricing />
         <Faq />
       </main>

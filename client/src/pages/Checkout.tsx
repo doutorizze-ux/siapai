@@ -171,13 +171,14 @@ export default function Checkout() {
             </div>
             <div className="rounded-2xl border bg-card p-5 flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">{product.name} · Acesso anual</p>
+                <p className="text-sm text-muted-foreground">{product.name} · Plano semestral</p>
                 <p className="text-2xl font-extrabold">
                   R$ {(product.priceCents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <ShieldCheck className="h-8 w-8 text-primary/60" />
             </div>
+            <p className="-mt-1 text-xs text-center text-muted-foreground">A validade termina em 30/06 ou 31/12, conforme o semestre da confirmação do pagamento.</p>
             <Button type="submit" size="lg" className="w-full text-base" disabled={createCheckout.isPending}>
               {createCheckout.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Gerar Pix QR Code
@@ -255,4 +256,3 @@ export default function Checkout() {
     </div>
   );
 }
-

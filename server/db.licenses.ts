@@ -1,6 +1,7 @@
 import { getDb } from "./db";
 import { type InsertLicense, type License, type ProductSettings } from "../drizzle/schema";
 import { nanoid } from "nanoid";
+import { getSemesterExpiryDate, SEMESTER_PLAN_DESCRIPTION } from "./licensePeriod";
 
 // O schema SQL usa snake_case; manter este nome centralizado evita divergência
 // entre a rotina de inicialização e as consultas de produção.
@@ -123,7 +124,7 @@ async function createDefaultSettings(): Promise<ProductSettings> {
   await pool.query(
     `INSERT INTO ${PRODUCT_SETTINGS_TABLE} (name, priceCents, installmentCount, currency, description, expiryDate, asaasMode)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ["PlanejaPro SIAP", 5990, 6, "BRL", "Acesso ao PlanejaPro até 31/12 do ano. Pagamento único, sem mensalidade.", new Date("2026-12-31T00:00:00Z"), "sandbox"]
+    ["SiapAI", 5990, 6, "BRL", SEMESTER_PLAN_DESCRIPTION, new Date("2026-12-31T00:00:00Z"), "sandbox"]
   );
   const [rows] = await pool.query(
     productSettingsSelectSql()
@@ -143,9 +144,12 @@ export function isLicenseActive(l: Pick<License, "active" | "expiresAt">): boole
 export async function activateLicenseByPayment(email: string, paymentId: string, customerId?: string) {
   const rows = await getLicensesByEmail(email);
   const pending = rows.find((r) => r.paymentId === paymentId && r.active === 0);
-  const settings = await getProductSettings();
   if (pending) {
-    await updateLicense(pending.id, { active: 1, startDate: new Date().toISOString().slice(0, 10) });
+    await updateLicense(pending.id, {
+      active: 1,
+      startDate: new Date().toISOString().slice(0, 10),
+      expiresAt: getSemesterExpiryDate(),
+    });
     return { activated: true, licenseId: pending.id };
   }
   if (customerId) {
@@ -159,7 +163,7 @@ export async function activateLicenseByPayment(email: string, paymentId: string,
     active: 1,
     planCode: "planejapro",
     startDate: new Date(),
-    expiresAt: new Date(String(settings.expiryDate) + "T00:00:00Z"),
+    expiresAt: getSemesterExpiryDate(),
     customerId: customerId ?? null,
     paymentId,
   } as never);

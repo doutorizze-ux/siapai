@@ -15,12 +15,17 @@ import {
   updateLicense,
   updateProductSettings,
 } from "../db.licenses";
+import { getSemesterExpiryDate, getSemesterExpiryLabel, SEMESTER_PLAN_DESCRIPTION } from "../licensePeriod";
 
 const emailSchema = z.string().email("E-mail inválido").trim().toLowerCase();
 
 async function getEffectiveProductSettings() {
   const settings = await getProductSettings();
-  return { ...settings, asaasMode: getConfiguredAsaasMode() };
+  return {
+    ...settings,
+    description: SEMESTER_PLAN_DESCRIPTION,
+    asaasMode: getConfiguredAsaasMode(),
+  };
 }
 
 export const commerceRouter = router({
@@ -147,7 +152,7 @@ export const commerceRouter = router({
         code: "",
         active: 0,
         planCode: "planejapro",
-        expiresAt: new Date(settings.expiryDate),
+        expiresAt: getSemesterExpiryDate(),
         paymentId: "__pending__",
       });
 
@@ -160,7 +165,7 @@ export const commerceRouter = router({
           customer: { id: customer.id },
           value: settings.priceCents / 100,
           externalReference: `${extRef}|${license.id}`,
-          description: `${settings.name} - Acesso até 31/12`,
+          description: `${settings.name} - Plano semestral até ${getSemesterExpiryLabel()}`,
         });
         await updateLicense(license.id, { paymentId: payment.id, customerId: customer.id });
         const pix = await asaasGetPixQrCode(payment.id);
@@ -239,6 +244,7 @@ export async function handleAsaasWebhook(body: unknown) {
         await updateLicense(license.id, {
           active: 1,
           startDate: new Date(),
+          expiresAt: getSemesterExpiryDate(),
           paymentId,
           customerId: customerId ?? license.customerId,
         });
@@ -254,6 +260,7 @@ export async function handleAsaasWebhook(body: unknown) {
       await updateLicense(pending.id, {
         active: 1,
         startDate: new Date(),
+        expiresAt: getSemesterExpiryDate(),
         customerId: customerId ?? pending.customerId,
       });
       log(`licença ${pending.id} (${pending.email}) ativada por paymentId`);
@@ -280,19 +287,17 @@ export const adminRouter = router({
     .input(
       z.object({
         email: emailSchema,
-        expiresAt: z.string(),
         code: z.string().trim().min(0).max(64).optional(),
       }),
     )
     .mutation(async ({ input }) => {
-      const settings = await getProductSettings();
       const license = await createLicense({
         email: input.email,
         code: input.code ?? "",
         active: 1,
         planCode: "planejapro",
         startDate: new Date(),
-        expiresAt: new Date(input.expiresAt + "T00:00:00Z"),
+        expiresAt: getSemesterExpiryDate(),
       });
       return { code: license.code };
     }),
