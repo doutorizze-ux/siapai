@@ -60,7 +60,7 @@
   "side_panel": {
     "default_path": "sidepanel.html"
   },
-  "version": "5.9.11",
+  "version": "5.9.12",
   "background": {
     "service_worker": "background.js"
   }

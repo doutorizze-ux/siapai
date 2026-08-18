@@ -53,6 +53,39 @@ window.SIAPApi = (() => {
     return String(getSharedGlobal('SIAP_SAAS_TOKEN') || '').trim();
   }
 
+  function requestThroughExtension(path, method, payload, token, timeoutMs = 30000) {
+    return new Promise((resolve, reject) => {
+      const requestId = `siap_revisa_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+      const timeout = setTimeout(() => {
+        window.removeEventListener('message', onMessage);
+        reject(new Error('Tempo esgotado na comunicação segura do Revisa.'));
+      }, Math.max(5000, Number(timeoutMs) || 30000));
+
+      function onMessage(event) {
+        if (event.source !== window) return;
+        const data = event?.data;
+        if (!data || data.source !== 'SIAP_SAAS_PAGE_PROXY_RESPONSE' || data.requestId !== requestId) return;
+        clearTimeout(timeout);
+        window.removeEventListener('message', onMessage);
+        if (data.ok) {
+          resolve(data.payload || {});
+        } else {
+          reject(new Error(data.message || 'Falha de comunicação com o Revisa.'));
+        }
+      }
+
+      window.addEventListener('message', onMessage);
+      window.postMessage({
+        source: 'SIAP_SAAS_PAGE_PROXY_REQUEST',
+        requestId,
+        path: String(path || ''),
+        method: String(method || 'POST').toUpperCase(),
+        payload: payload === undefined ? null : payload,
+        token: String(token || '')
+      }, window.location.origin);
+    });
+  }
+
   const CATALOG_VERSION = '3.2.27';
   const BIMESTRE_SELECTOR = '#cphFuncionalidade_cphCampos_ddlBimestre, #ddlBimestre, select[id$="ddlBimestre"], select[name$="$ddlBimestre"]';
   const EIXO_SELECTOR = '#ddlEixo, select[id$="ddlEixo"], select[name$="$ddlEixo"]';
@@ -242,29 +275,8 @@ window.SIAPApi = (() => {
   async function callCatalogEndpoint(payload) {
     const token = getServerToken();
     if (!token) throw new Error('Token da licença não encontrado para acessar o catálogo.');
-
-    const response = await fetch(`${getServerApiBase()}/catalogo-siap.php`, {
-      method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const rawText = await response.text();
-    let json = null;
-    try {
-      json = rawText ? JSON.parse(rawText) : null;
-    } catch (_) {
-      throw new Error(`Resposta inválida do catálogo: ${rawText.slice(0, 240)}`);
-    }
-
-    if (!response.ok || !json?.ok) {
-      throw new Error(json?.error || json?.message || `Erro HTTP ${response.status}`);
-    }
-
+    const json = await requestThroughExtension('/catalogo-siap.php', 'POST', payload, token, 30000);
+    if (!json?.ok) throw new Error(json?.error || json?.message || 'Catálogo indisponível.');
     return json;
   }
 
@@ -283,45 +295,18 @@ window.SIAPApi = (() => {
   async function callRevisaEndpoint(payload, options = {}) {
     const token = getServerToken();
     if (!token) throw new Error('Token da licença não encontrado para acessar o Revisa.');
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), Math.max(5000, Number(options.timeout || 30000)));
-
     try {
-      const response = await fetch(`${getServerApiBase()}/revisa.php`, {
-        method: 'POST',
-        mode: 'cors',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
-
-      const rawText = await response.text();
-      let json = null;
-      try {
-        json = rawText ? JSON.parse(rawText) : null;
-      } catch (_) {
-        throw new Error(`Resposta inválida do Revisa: ${rawText.slice(0, 240)}`);
-      }
-
-      if (!response.ok || !json?.ok) {
-        const error = new Error(json?.error || json?.message || `Erro HTTP ${response.status}`);
-        error.status = response.status;
-        error.data = json?.data || null;
-        throw error;
-      }
-
+      const json = await requestThroughExtension(
+        '/revisa.php',
+        'POST',
+        payload,
+        token,
+        Math.max(5000, Number(options.timeout || 30000))
+      );
+      if (!json?.ok) throw new Error(json?.error || json?.message || 'Revisa indisponível.');
       return json;
     } catch (err) {
-      if (err?.name === 'AbortError') {
-        throw new Error('Tempo esgotado ao consultar o Revisa.');
-      }
       throw err;
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
 

@@ -401,6 +401,36 @@
         }
     }
 
+    const PAGE_PROXY_ALLOWED_PATHS = new Set(['/catalogo-siap.php', '/revisa.php']);
+
+    window.addEventListener('message', (event) => {
+        if (event.source !== window || event.origin !== window.location.origin) return;
+        const data = event?.data;
+        if (!data || data.source !== 'SIAP_SAAS_PAGE_PROXY_REQUEST') return;
+        const path = String(data.path || '');
+        const method = String(data.method || 'POST').toUpperCase();
+        const requestId = String(data.requestId || '');
+        if (!requestId || !PAGE_PROXY_ALLOWED_PATHS.has(path) || method !== 'POST') return;
+
+        requestViaBackground(path, method, data.payload === undefined ? null : data.payload, data.token || '')
+            .then((payload) => {
+                window.postMessage({
+                    source: 'SIAP_SAAS_PAGE_PROXY_RESPONSE',
+                    requestId,
+                    ok: true,
+                    payload
+                }, window.location.origin);
+            })
+            .catch((err) => {
+                window.postMessage({
+                    source: 'SIAP_SAAS_PAGE_PROXY_RESPONSE',
+                    requestId,
+                    ok: false,
+                    message: err?.message || 'Falha ao consultar o servidor SiapAI.'
+                }, window.location.origin);
+            });
+    });
+
     function injectOverlayStyles() {
         if (document.getElementById('siap-saas-overlay-style')) return;
 
