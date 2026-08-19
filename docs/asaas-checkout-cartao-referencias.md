@@ -25,3 +25,10 @@ Para o produto SiapAI, a cobrança é avulsa (`DETACHED`) e oferece `PIX` ou `CR
 
 3. [Checkout para cartão de crédito](https://docs.asaas.com/docs/checkout-para-cart%C3%A3o-de-cr%C3%A9dito)
    - Para cartão parcelado, configurar `billingTypes: ["CREDIT_CARD"]`, `chargeTypes: ["INSTALLMENT"]` e `installment.maxInstallmentCount`.
+
+## Correção identificada em 18/08/2026
+
+- A referência oficial de criação exige que o checkout avulso enviado a `POST /v3/checkouts` inclua `callback.successUrl`, `callback.cancelUrl` e `callback.expiredUrl`, além de `billingTypes`, `chargeTypes`, `minutesToExpire` e `items`.
+- O exemplo oficial confirma `billingTypes: ["PIX", "CREDIT_CARD"]` com `chargeTypes: ["DETACHED"]` para uma venda avulsa.
+- O retorno usa o `link` hospedado pelo Asaas. A confirmação da licença permanece dependente do webhook, e não das URLs de retorno.
+- Fonte: https://docs.asaas.com/docs/checkout-asaas

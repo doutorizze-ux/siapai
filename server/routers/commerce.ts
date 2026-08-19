@@ -20,6 +20,34 @@ import { normalizeSiapPaymentMethod, shouldActivateLicenseForPaymentEvent, shoul
 
 const emailSchema = z.string().email("E-mail inválido").trim().toLowerCase();
 
+type CheckoutPaymentMethod = "PIX" | "CREDIT_CARD";
+
+/**
+ * O Coolify atua como proxy reverso. Prioriza uma origem configurada e, na
+ * ausência dela, recompõe a origem pública pelos cabeçalhos encaminhados.
+ */
+function getPublicSiteUrl(req: { headers: Record<string, string | string[] | undefined> }): string {
+  const configuredUrl = process.env.PUBLIC_APP_URL?.trim();
+  if (configuredUrl) return configuredUrl.replace(/\/+$/, "");
+
+  const forwardedHost = req.headers["x-forwarded-host"];
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const host = (Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost)
+    ?? (Array.isArray(req.headers.host) ? req.headers.host[0] : req.headers.host);
+  const protocol = (Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto) ?? "https";
+
+  return host ? `${protocol.split(",")[0]}://${host.split(",")[0]}` : "https://siapai.online";
+}
+
+function getCheckoutCallbacks(req: { headers: Record<string, string | string[] | undefined> }) {
+  const siteUrl = getPublicSiteUrl(req);
+  return {
+    successUrl: `${siteUrl}/checkout?payment=success`,
+    cancelUrl: `${siteUrl}/checkout?payment=cancelled`,
+    expiredUrl: `${siteUrl}/checkout?payment=expired`,
+  };
+}
+
 async function getEffectiveProductSettings() {
   const settings = await getProductSettings();
   return {
@@ -113,6 +141,7 @@ export const commerceRouter = router({
           .trim()
           .min(11, "CPF ou CNPJ é obrigatório para gerar a cobrança segura (o Asaas exige o documento)")
           .max(18),
+        paymentMethod: z.enum(["PIX", "CREDIT_CARD"]),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -126,11 +155,12 @@ export const commerceRouter = router({
 
       // Evitar checkout hospedado duplicado pendente para o mesmo e-mail.
       const existing = await getLicensesByEmail(input.email);
-      const pending = existing.find((r) => r.active === 0);
-      if (pending && pending.paymentId) {
+      const pendingLicenses = existing.filter((r) => r.active === 0 && r.paymentId && r.paymentId !== "__pending__");
+      for (const pending of pendingLicenses) {
         try {
-          const checkout = await asaasGetHostedCheckout(pending.paymentId);
-          if (checkout.status === "ACTIVE" && checkout.link) {
+          const checkout = await asaasGetHostedCheckout(pending.paymentId!);
+          const usesChosenMethod = checkout.billingTypes?.length === 1 && checkout.billingTypes[0] === input.paymentMethod;
+          if (checkout.status === "ACTIVE" && checkout.link && usesChosenMethod) {
             return {
               checkoutId: checkout.id,
               checkoutUrl: checkout.link,
@@ -161,6 +191,8 @@ export const commerceRouter = router({
           value: settings.priceCents / 100,
           externalReference: `${extRef}|${license.id}`,
           description: `${settings.name} - Plano semestral até ${getSemesterExpiryLabel()}`,
+          paymentMethod: input.paymentMethod as CheckoutPaymentMethod,
+          callback: getCheckoutCallbacks(ctx.req),
         });
         await updateLicense(license.id, { paymentId: checkout.id });
         return {
@@ -172,6 +204,8 @@ export const commerceRouter = router({
         // Reverter licença pendente se o Asaas falhar
         await deleteLicense(license.id);
         const status = (error as { status?: number })?.status;
+        const details = (error as Error)?.message ?? "Erro desconhecido";
+        console.error(`[Asaas checkout] Falha ao criar checkout: status=${status ?? "indefinido"}; detalhe=${details}`);
         if (status === 401) {
           throw new TRPCError({
             code: "PRECONDITION_FAILED",

@@ -130,6 +130,12 @@ export interface CreateHostedCheckoutInput {
   value: number;
   externalReference: string;
   description: string;
+  paymentMethod: "PIX" | "CREDIT_CARD";
+  callback: {
+    successUrl: string;
+    cancelUrl: string;
+    expiredUrl: string;
+  };
   minutesToExpire?: number;
 }
 
@@ -142,10 +148,11 @@ export async function asaasCreateHostedCheckout(input: CreateHostedCheckoutInput
   const body = await asaasRequest("/checkouts", {
     method: "POST",
     body: JSON.stringify({
-      billingTypes: ["PIX", "CREDIT_CARD"],
+      billingTypes: [input.paymentMethod],
       chargeTypes: ["DETACHED"],
       minutesToExpire: input.minutesToExpire ?? 1440,
       externalReference: input.externalReference,
+      callback: input.callback,
       items: [{
         externalReference: "siapai-plano-semestral",
         name: "SiapAI — Plano semestral",

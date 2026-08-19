@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, CreditCard, Loader2, QrCode, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CreditCard, Loader2, QrCode, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 
@@ -16,16 +17,18 @@ export default function Checkout() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [cpf, setCpf] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"PIX" | "CREDIT_CARD">("PIX");
   const [status, setStatus] = useState<Status>("form");
+  const paymentResult = new URLSearchParams(window.location.search).get("payment");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !name || !cpf || cpf.replace(/\D/g, "").length < 11) return;
     setStatus("loading");
     try {
-      const result = await createCheckout.mutateAsync({ email, name, cpfCnpj: cpf });
+      const result = await createCheckout.mutateAsync({ email, name, cpfCnpj: cpf, paymentMethod });
       if (!result.checkoutUrl) throw new Error("O link de pagamento seguro não foi disponibilizado.");
-      toast.info("Você será direcionado para o pagamento seguro do Asaas.");
+      toast.info(`Você será direcionado para o pagamento seguro via ${paymentMethod === "PIX" ? "Pix" : "cartão"}.`);
       window.location.assign(result.checkoutUrl);
     } catch (err) {
       setStatus("form");
@@ -66,6 +69,24 @@ export default function Checkout() {
                 somente após a confirmação do pagamento.
               </p>
             </div>
+            {paymentResult === "success" && (
+              <div role="status" className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <p><strong>Pagamento concluído.</strong> A licença será ativada automaticamente assim que o Asaas confirmar a cobrança.</p>
+                </div>
+              </div>
+            )}
+            {paymentResult === "cancelled" && (
+              <div role="status" className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-4 text-sm text-foreground">
+                O pagamento foi cancelado. Você pode escolher uma forma de pagamento e tentar novamente quando quiser.
+              </div>
+            )}
+            {paymentResult === "expired" && (
+              <div role="status" className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-4 text-sm text-foreground">
+                Este link de pagamento expirou. Preencha seus dados e gere um novo link seguro.
+              </div>
+            )}
             <div className="rounded-2xl border bg-card p-5 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="name">Nome completo</Label>
@@ -89,19 +110,26 @@ export default function Checkout() {
               </div>
             </div>
             <fieldset className="rounded-2xl border bg-card p-5 space-y-3">
-              <legend className="px-1 text-sm font-semibold">Formas de pagamento disponíveis</legend>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-primary bg-primary/5 p-4 text-left">
-                  <QrCode className="mb-2 h-5 w-5 text-primary" />
-                  <span className="block font-semibold">Pix</span>
+              <legend className="px-1 text-sm font-semibold">Escolha a forma de pagamento</legend>
+              <p className="text-xs text-muted-foreground">A opção selecionada será a única exibida no ambiente seguro do Asaas.</p>
+              <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as "PIX" | "CREDIT_CARD")} className="grid gap-3 sm:grid-cols-2">
+                <label htmlFor="payment-pix" className={`cursor-pointer rounded-xl border p-4 text-left transition-colors ${paymentMethod === "PIX" ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/50"}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <QrCode className="h-5 w-5 text-primary" />
+                    <RadioGroupItem id="payment-pix" value="PIX" aria-label="Pagar por Pix" />
+                  </div>
+                  <span className="mt-2 block font-semibold">Pix</span>
                   <span className="mt-1 block text-xs text-muted-foreground">QR Code e código copia e cola.</span>
-                </div>
-                <div className="rounded-xl border border-primary bg-primary/5 p-4 text-left">
-                  <CreditCard className="mb-2 h-5 w-5 text-primary" />
-                  <span className="block font-semibold">Cartão de crédito</span>
-                  <span className="mt-1 block text-xs text-muted-foreground">Pagamento seguro na página do Asaas.</span>
-                </div>
-              </div>
+                </label>
+                <label htmlFor="payment-card" className={`cursor-pointer rounded-xl border p-4 text-left transition-colors ${paymentMethod === "CREDIT_CARD" ? "border-primary bg-primary/5" : "border-border bg-background hover:border-primary/50"}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    <RadioGroupItem id="payment-card" value="CREDIT_CARD" aria-label="Pagar por cartão de crédito" />
+                  </div>
+                  <span className="mt-2 block font-semibold">Cartão de crédito</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">Dados informados somente no Asaas.</span>
+                </label>
+              </RadioGroup>
             </fieldset>
             <div className="rounded-2xl border bg-card p-5 flex items-center justify-between">
               <div>
@@ -115,10 +143,10 @@ export default function Checkout() {
             <p className="-mt-1 text-xs text-center text-muted-foreground">A validade termina em 30/06 ou 31/12, conforme o semestre da confirmação do pagamento.</p>
             <Button type="submit" size="lg" className="w-full text-base" disabled={createCheckout.isPending}>
               {createCheckout.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Ir para o pagamento seguro
+              {paymentMethod === "PIX" ? "Continuar com Pix" : "Continuar com cartão"}
             </Button>
             <p className="text-xs text-center text-muted-foreground">
-              Você escolherá Pix ou cartão na página segura do Asaas. O SiapAI não recebe nem armazena dados do cartão.
+              Você será direcionado para a página segura do Asaas. O SiapAI não recebe nem armazena dados do cartão.
             </p>
           </form>
         )}

@@ -19,7 +19,7 @@ describe("asaasCreateHostedCheckout", () => {
     else process.env.ASAAS_API_URL = originalUrl;
   });
 
-  it("cria um único checkout hospedado com Pix e cartão, sem dados de cartão", async () => {
+  it("cria checkout hospedado para o método escolhido, com callbacks e sem dados de cartão", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -42,6 +42,12 @@ describe("asaasCreateHostedCheckout", () => {
       value: 97,
       externalReference: "pp-1|77",
       description: "Plano semestral até 31/12/2026",
+      paymentMethod: "CREDIT_CARD",
+      callback: {
+        successUrl: "https://siapai.online/checkout?payment=success",
+        cancelUrl: "https://siapai.online/checkout?payment=cancelled",
+        expiredUrl: "https://siapai.online/checkout?payment=expired",
+      },
     });
 
     expect(checkout).toMatchObject({ id: "checkout_123", status: "ACTIVE" });
@@ -50,10 +56,15 @@ describe("asaasCreateHostedCheckout", () => {
     expect(url).toBe("https://api-sandbox.asaas.com/v3/checkouts");
     const payload = JSON.parse(String(options.body));
     expect(payload).toMatchObject({
-      billingTypes: ["PIX", "CREDIT_CARD"],
+      billingTypes: ["CREDIT_CARD"],
       chargeTypes: ["DETACHED"],
       minutesToExpire: 1440,
       externalReference: "pp-1|77",
+      callback: {
+        successUrl: "https://siapai.online/checkout?payment=success",
+        cancelUrl: "https://siapai.online/checkout?payment=cancelled",
+        expiredUrl: "https://siapai.online/checkout?payment=expired",
+      },
       customerData: {
         name: "Professora SiapAI",
         email: "professora@escola.com",
