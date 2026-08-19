@@ -1,4 +1,5 @@
 import { invokeLLM } from "./_core/llm";
+import { getManagedLlmModel } from "./llmConfig";
 
 export interface LessonPlanItem {
   title: string;
@@ -131,7 +132,7 @@ const LESSON_PLANS_SCHEMA = {
 
 async function runGenerateLessonPlans(input: GeneratePlanInput): Promise<LessonPlanItem[]> {
   const response = await invokeLLM({
-    model: "gemini-3-flash-preview",
+    model: getManagedLlmModel("gemini-3-flash-preview"),
     messages: [{ role: "user", content: buildUserPrompt(input) }],
     max_tokens: 16000,
     response_format: {
@@ -208,7 +209,7 @@ export async function generatePei(input: PeiInput): Promise<PeiOutput> {
   );
 
   const response = await invokeLLM({
-    model: "gemini-3-flash-preview",
+    model: getManagedLlmModel("gemini-3-flash-preview"),
     messages: [{ role: "user", content: parts.join("\n\n") }],
     max_tokens: 8000,
     response_format: {

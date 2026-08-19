@@ -21,6 +21,7 @@ import { invokeLLM, type Message } from "./_core/llm";
 import { nanoid } from "nanoid";
 import { getCompletedRevisaActivities, registerCompletedRevisaActivities } from "./db.revisa";
 import { getPublicRevisaCatalog, getPublicRevisaExcerpt, isPublicRevisaMaterial } from "./revisaCatalog";
+import { getManagedLlmModel } from "./llmConfig";
 
 // Chave fixa e estável usada para assinar os tokens da extensão — mantida ao migrar para o Coolify
 // para que sessões e tokens existentes continuem válidos.
@@ -308,7 +309,7 @@ export function registerExtension3Routes(expressRouter: Router): void {
           const disciplina = body.contexto?.disciplina || "";
           const serie = body.contexto?.serie || "";
           const response = await invokeLLM({
-            model: "gemini-3-flash-preview",
+            model: getManagedLlmModel("gemini-3-flash-preview"),
             messages: [
               {
                 role: "user",
@@ -443,7 +444,7 @@ export function registerExtension3Routes(expressRouter: Router): void {
         return res.json({ ok: false, error: "conteudo_vazio", message: "Nenhum conteúdo para revisar." });
       }
       const response = await invokeLLM({
-        model: "gemini-3-flash-preview",
+        model: getManagedLlmModel("gemini-3-flash-preview"),
         messages: [
           {
             role: "user",
@@ -555,7 +556,7 @@ export function registerExtension3Routes(expressRouter: Router): void {
       // esse contexto a um tema genérico faz o resultado perder habilidades e
       // conteúdos clicáveis do SIAP.
       const completion = await invokeLLM({
-        model: "gemini-3.6-flash",
+        model: getManagedLlmModel("gemini-3.6-flash"),
         messages,
         max_tokens: maxTokens,
         response_format: { type: "json_object" },
@@ -567,7 +568,7 @@ export function registerExtension3Routes(expressRouter: Router): void {
       }
       return res.json({
         id: `chatcmpl-${nanoid(12)}`,
-        model: completion.model || "gemini-3.6-flash",
+        model: completion.model || getManagedLlmModel("gemini-3.6-flash"),
         created: Math.floor(Date.now() / 1000),
         data: {
           choices: [
