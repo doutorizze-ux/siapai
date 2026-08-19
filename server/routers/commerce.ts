@@ -17,6 +17,7 @@ import {
 } from "../db.licenses";
 import { getSemesterExpiryDate, getSemesterExpiryLabel, SEMESTER_PLAN_DESCRIPTION } from "../licensePeriod";
 import { normalizeSiapPaymentMethod, shouldActivateLicenseForPaymentEvent, shouldDeactivateLicenseForPaymentEvent } from "../paymentLifecycle";
+import { matchesCheckoutActivationContext } from "../checkoutActivation";
 
 const emailSchema = z.string().email("E-mail inválido").trim().toLowerCase();
 const phoneNumberSchema = z.string().trim()
@@ -242,10 +243,10 @@ export const commerceRouter = router({
 
   /** Consulta somente o estado da licença recém-criada para a tela de retorno do Asaas. */
   checkoutActivationStatus: publicProcedure
-    .input(z.object({ licenseId: z.number().int().positive(), email: emailSchema }))
+    .input(z.object({ checkoutId: z.string().min(1), licenseId: z.number().int().positive(), email: emailSchema }))
     .query(async ({ input }) => {
       const licenses = await getLicensesByEmail(input.email);
-      const license = licenses.find((item) => item.id === input.licenseId);
+      const license = licenses.find((item) => matchesCheckoutActivationContext(item, input));
       if (!license) return { found: false, active: false, expiresAt: null };
 
       return {

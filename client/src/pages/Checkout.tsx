@@ -33,6 +33,7 @@ export default function Checkout() {
   const shouldCheckActivation = paymentResult === "success" && Boolean(checkoutReturn);
   const activationStatus = trpc.commerce.checkoutActivationStatus.useQuery(
     {
+      checkoutId: checkoutReturn?.checkoutId ?? "retorno-pendente",
       licenseId: checkoutReturn?.licenseId ?? 1,
       email: checkoutReturn?.email ?? "retorno@siapai.local",
     },
