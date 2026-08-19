@@ -18,6 +18,7 @@ import {
 import { getSemesterExpiryDate, getSemesterExpiryLabel, SEMESTER_PLAN_DESCRIPTION } from "../licensePeriod";
 import { normalizeSiapPaymentMethod, shouldActivateLicenseForPaymentEvent, shouldDeactivateLicenseForPaymentEvent } from "../paymentLifecycle";
 import { matchesCheckoutActivationContext } from "../checkoutActivation";
+import { findPendingLicenseForAsaasPayment } from "../asaasWebhookPaymentMatch";
 
 const emailSchema = z.string().email("E-mail inválido").trim().toLowerCase();
 const phoneNumberSchema = z.string().trim()
@@ -284,7 +285,7 @@ export const commerceRouter = router({
 export async function handleAsaasWebhook(body: unknown) {
   const data = body as {
     event?: string;
-    payment?: { id?: string; customer?: string; externalReference?: string; status?: string };
+    payment?: { id?: string; customer?: string; externalReference?: string; checkoutSession?: string; status?: string };
   };
   const log = (msg: string) => console.log(`[Asaas webhook] ${msg}`);
   log(`evento=${data?.event} paymentId=${data?.payment?.id}`);
@@ -316,17 +317,19 @@ export async function handleAsaasWebhook(body: unknown) {
       }
     }
 
-    // 2. Fallback: localizar a licença pendente pelo próprio paymentId do Asaas
+    // 2. Fallback: localizar a licença pendente pelo paymentId ou checkoutSession.
+    // O Checkout hospedado pode não propagar externalReference ao pagamento final.
     const all = await getAllLicenses();
-    const pending = all.find((r) => r.paymentId === paymentId && r.active === 0);
+    const pending = findPendingLicenseForAsaasPayment(all, paymentId, data.payment.checkoutSession);
     if (pending) {
       await updateLicense(pending.id, {
         active: 1,
         startDate: new Date(),
         expiresAt: getSemesterExpiryDate(),
+        paymentId,
         customerId: customerId ?? pending.customerId,
       });
-      log(`licença ${pending.id} (${pending.email}) ativada por paymentId`);
+      log(`licença ${pending.id} (${pending.email}) ativada por ${pending.paymentId === paymentId ? "paymentId" : "checkoutSession"}`);
       return;
     }
 
