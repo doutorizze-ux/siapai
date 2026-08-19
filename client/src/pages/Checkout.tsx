@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { formatBrazilianMobilePhone } from "@/lib/phoneFormat";
+import { buildCheckoutPayload } from "@/lib/checkoutPayload";
 
 type Status = "form" | "loading";
 
@@ -38,7 +39,7 @@ export default function Checkout() {
     }
     setStatus("loading");
     try {
-      const result = await createCheckout.mutateAsync({
+      const result = await createCheckout.mutateAsync(buildCheckoutPayload({
         email,
         name,
         cpfCnpj: cpf,
@@ -48,7 +49,7 @@ export default function Checkout() {
         postalCode,
         province,
         paymentMethod,
-      });
+      }));
       if (!result.checkoutUrl) throw new Error("O link de pagamento seguro não foi disponibilizado.");
       toast.info(`Você será direcionado para o pagamento seguro via ${paymentMethod === "PIX" ? "Pix" : "cartão"}.`);
       window.location.assign(result.checkoutUrl);
