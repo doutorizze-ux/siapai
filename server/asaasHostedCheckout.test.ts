@@ -39,6 +39,11 @@ describe("asaasCreateHostedCheckout", () => {
       name: "Professora SiapAI",
       email: "professora@escola.com",
       cpfCnpj: "12345678901",
+      phoneNumber: "62999999999",
+      address: "Avenida Central",
+      addressNumber: "123",
+      postalCode: "74000000",
+      province: "Setor Central",
       value: 97,
       externalReference: "pp-1|77",
       description: "Plano semestral até 31/12/2026",
@@ -69,6 +74,11 @@ describe("asaasCreateHostedCheckout", () => {
         name: "Professora SiapAI",
         email: "professora@escola.com",
         cpfCnpj: "12345678901",
+        phoneNumber: "62999999999",
+        address: "Avenida Central",
+        addressNumber: "123",
+        postalCode: "74000000",
+        province: "Setor Central",
       },
     });
     expect(JSON.stringify(payload)).not.toMatch(/cvv|cardNumber|creditCardNumber|expiryMonth/i);

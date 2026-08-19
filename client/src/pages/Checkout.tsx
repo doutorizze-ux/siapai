@@ -17,16 +17,37 @@ export default function Checkout() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [cpf, setCpf] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [addressNumber, setAddressNumber] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [province, setProvince] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"PIX" | "CREDIT_CARD">("PIX");
   const [status, setStatus] = useState<Status>("form");
   const paymentResult = new URLSearchParams(window.location.search).get("payment");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !name || !cpf || cpf.replace(/\D/g, "").length < 11) return;
+    const cpfDigits = cpf.replace(/\D/g, "");
+    const phoneDigits = phoneNumber.replace(/\D/g, "");
+    const postalCodeDigits = postalCode.replace(/\D/g, "");
+    if (!email || !name || cpfDigits.length < 11 || phoneDigits.length < 10 || !address.trim() || !addressNumber.trim() || postalCodeDigits.length !== 8 || !province.trim()) {
+      toast.error("Preencha nome, CPF, telefone e endereço completo para gerar a cobrança segura.");
+      return;
+    }
     setStatus("loading");
     try {
-      const result = await createCheckout.mutateAsync({ email, name, cpfCnpj: cpf, paymentMethod });
+      const result = await createCheckout.mutateAsync({
+        email,
+        name,
+        cpfCnpj: cpf,
+        phoneNumber,
+        address,
+        addressNumber,
+        postalCode,
+        province,
+        paymentMethod,
+      });
       if (!result.checkoutUrl) throw new Error("O link de pagamento seguro não foi disponibilizado.");
       toast.info(`Você será direcionado para o pagamento seguro via ${paymentMethod === "PIX" ? "Pix" : "cartão"}.`);
       window.location.assign(result.checkoutUrl);
@@ -107,6 +128,29 @@ export default function Checkout() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">Necessário para emitir a cobrança pelo Asaas.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Celular com DDD *</Label>
+                <Input id="phone" type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="(62) 99999-9999" maxLength={16} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="address">Rua / avenida *</Label>
+                <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Ex.: Avenida Central" maxLength={160} required />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="address-number">Número *</Label>
+                  <Input id="address-number" value={addressNumber} onChange={(e) => setAddressNumber(e.target.value)} placeholder="Ex.: 123 ou s/n" maxLength={20} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="postal-code">CEP *</Label>
+                  <Input id="postal-code" inputMode="numeric" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="00000-000" maxLength={9} required />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="province">Bairro *</Label>
+                <Input id="province" value={province} onChange={(e) => setProvince(e.target.value)} placeholder="Ex.: Setor Central" maxLength={120} required />
+                <p className="text-xs text-muted-foreground">Esses dados são exigidos pelo Asaas para gerar a cobrança. O SiapAI não recebe dados do cartão.</p>
               </div>
             </div>
             <fieldset className="rounded-2xl border bg-card p-5 space-y-3">

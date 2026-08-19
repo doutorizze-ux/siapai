@@ -19,6 +19,15 @@ import { getSemesterExpiryDate, getSemesterExpiryLabel, SEMESTER_PLAN_DESCRIPTIO
 import { normalizeSiapPaymentMethod, shouldActivateLicenseForPaymentEvent, shouldDeactivateLicenseForPaymentEvent } from "../paymentLifecycle";
 
 const emailSchema = z.string().email("E-mail inválido").trim().toLowerCase();
+const phoneNumberSchema = z.string().trim()
+  .refine((value) => {
+    const digits = value.replace(/\D/g, "");
+    return digits.length >= 10 && digits.length <= 11;
+  }, "Informe um telefone válido com DDD.")
+  .transform((value) => value.replace(/\D/g, ""));
+const postalCodeSchema = z.string().trim()
+  .refine((value) => value.replace(/\D/g, "").length === 8, "Informe um CEP válido.")
+  .transform((value) => value.replace(/\D/g, ""));
 
 type CheckoutPaymentMethod = "PIX" | "CREDIT_CARD";
 
@@ -141,6 +150,11 @@ export const commerceRouter = router({
           .trim()
           .min(11, "CPF ou CNPJ é obrigatório para gerar a cobrança segura (o Asaas exige o documento)")
           .max(18),
+        phoneNumber: phoneNumberSchema,
+        address: z.string().trim().min(3, "Informe a rua ou avenida.").max(160),
+        addressNumber: z.string().trim().min(1, "Informe o número do endereço.").max(20),
+        postalCode: postalCodeSchema,
+        province: z.string().trim().min(2, "Informe o bairro.").max(120),
         paymentMethod: z.enum(["PIX", "CREDIT_CARD"]),
       }),
     )
@@ -188,6 +202,11 @@ export const commerceRouter = router({
           name: input.name,
           email: input.email,
           cpfCnpj: input.cpfCnpj,
+          phoneNumber: input.phoneNumber,
+          address: input.address,
+          addressNumber: input.addressNumber,
+          postalCode: input.postalCode,
+          province: input.province,
           value: settings.priceCents / 100,
           externalReference: `${extRef}|${license.id}`,
           description: `${settings.name} - Plano semestral até ${getSemesterExpiryLabel()}`,

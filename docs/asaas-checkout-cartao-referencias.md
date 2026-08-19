@@ -32,3 +32,15 @@ Para o produto SiapAI, a cobrança é avulsa (`DETACHED`) e oferece `PIX` ou `CR
 - O exemplo oficial confirma `billingTypes: ["PIX", "CREDIT_CARD"]` com `chargeTypes: ["DETACHED"]` para uma venda avulsa.
 - O retorno usa o `link` hospedado pelo Asaas. A confirmação da licença permanece dependente do webhook, e não das URLs de retorno.
 - Fonte: https://docs.asaas.com/docs/checkout-asaas
+
+## Validação em produção — cadastro do pagador
+
+Em 19/08/2026, a API de produção respondeu `400` ao criar o checkout enquanto o
+`customerData` continha apenas nome, CPF e e-mail. A mensagem retornada pelo Asaas
+exigiu explicitamente `phoneNumber`, `address`, `addressNumber`, `postalCode` e
+`province`. O checkout do SiapAI passou a coletar esses dados cadastrais antes de
+criar o link hospedado e a enviá-los dentro de `customerData`.
+
+Os campos são utilizados somente para a criação da cobrança pelo Asaas. Dados de
+cartão, como número, validade e CVV, continuam fora do SiapAI e são coletados na
+página hospedada do Asaas.

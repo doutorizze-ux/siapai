@@ -127,6 +127,11 @@ export interface CreateHostedCheckoutInput {
   name: string;
   email: string;
   cpfCnpj: string;
+  phoneNumber: string;
+  address: string;
+  addressNumber: string;
+  postalCode: string;
+  province: string;
   value: number;
   externalReference: string;
   description: string;
@@ -164,6 +169,11 @@ export async function asaasCreateHostedCheckout(input: CreateHostedCheckoutInput
         name: input.name,
         cpfCnpj: input.cpfCnpj,
         email: input.email,
+        phoneNumber: input.phoneNumber,
+        address: input.address,
+        addressNumber: input.addressNumber,
+        postalCode: input.postalCode,
+        province: input.province,
       },
     }),
   });
