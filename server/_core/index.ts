@@ -12,6 +12,7 @@ import { registerExtension3Routes } from "../extensionCompat3";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { initializeDatabase } from "./dbInit";
+import { isAuthorizedAsaasWebhook } from "../asaasWebhookAuth";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -45,18 +46,15 @@ async function startServer() {
   // Rotas de compatibilidade da extensão SiapAI v3.2.40 (auth por e-mail, catálogo, IA, Revisa, PEI)
   registerExtension3Routes(app);
   // Webhook do Asaas (POST /api/webhook/asaas)
-  // O Asaas envia o token de autenticação do webhook no header X-ASAAS-TOKEN (API v3).
+  // O Asaas envia o token de autenticação no header asaas-access-token.
+  // x-asaas-token é aceito apenas para compatibilidade com configurações antigas.
   // Se ASAAS_WEBHOOK_TOKEN estiver definido no servidor, o token é validado;
   // sem a env, o webhook aceita qualquer chamada (compatibilidade com configuração antiga).
   app.post("/api/webhook/asaas", (req, res) => {
     const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim();
-    if (expectedToken) {
-      const received = req.headers["x-asaas-token"];
-      const tokenValue = Array.isArray(received) ? received[0] : received;
-      if (!tokenValue || tokenValue !== expectedToken) {
-        res.status(401).json({ error: "webhook token invalid" });
-        return;
-      }
+    if (!isAuthorizedAsaasWebhook(req.headers, expectedToken)) {
+      res.status(401).json({ error: "webhook token invalid" });
+      return;
     }
     handleAsaasWebhook(req.body).then(() => {
       res.status(200).json({ received: true });
