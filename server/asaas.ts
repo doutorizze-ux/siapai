@@ -169,7 +169,10 @@ export async function asaasCreateHostedCheckout(input: CreateHostedCheckoutInput
         name: input.name,
         cpfCnpj: input.cpfCnpj,
         email: input.email,
-        phoneNumber: input.phoneNumber,
+        // O Checkout Asaas usa `phone` dentro de customerData. Mantemos
+        // `phoneNumber` somente no contrato interno do SiapAI para não
+        // alterar o formulário nem as validações do roteador.
+        phone: input.phoneNumber,
         address: input.address,
         addressNumber: input.addressNumber,
         postalCode: input.postalCode,

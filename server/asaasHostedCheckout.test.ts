@@ -74,13 +74,14 @@ describe("asaasCreateHostedCheckout", () => {
         name: "Professora SiapAI",
         email: "professora@escola.com",
         cpfCnpj: "12345678901",
-        phoneNumber: "62999999999",
+        phone: "62999999999",
         address: "Avenida Central",
         addressNumber: "123",
         postalCode: "74000000",
         province: "Setor Central",
       },
     });
+    expect(payload.customerData).not.toHaveProperty("phoneNumber");
     expect(JSON.stringify(payload)).not.toMatch(/cvv|cardNumber|creditCardNumber|expiryMonth/i);
   });
 });
