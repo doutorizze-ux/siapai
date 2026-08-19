@@ -19,6 +19,7 @@ import { getSemesterExpiryDate, getSemesterExpiryLabel, SEMESTER_PLAN_DESCRIPTIO
 import { normalizeSiapPaymentMethod, shouldActivateLicenseForPaymentEvent, shouldDeactivateLicenseForPaymentEvent } from "../paymentLifecycle";
 import { matchesCheckoutActivationContext } from "../checkoutActivation";
 import { findPendingLicenseForAsaasPayment } from "../asaasWebhookPaymentMatch";
+import { createCheckoutReturnToken, verifyCheckoutReturnToken } from "../checkoutReturnToken";
 
 const emailSchema = z.string().email("E-mail inválido").trim().toLowerCase();
 const phoneNumberSchema = z.string().trim()
@@ -50,12 +51,16 @@ function getPublicSiteUrl(req: { headers: Record<string, string | string[] | und
   return host ? `${protocol.split(",")[0]}://${host.split(",")[0]}` : "https://siapai.online";
 }
 
-function getCheckoutCallbacks(req: { headers: Record<string, string | string[] | undefined> }) {
+function getCheckoutCallbacks(
+  req: { headers: Record<string, string | string[] | undefined> },
+  returnToken: string,
+) {
   const siteUrl = getPublicSiteUrl(req);
+  const token = encodeURIComponent(returnToken);
   return {
-    successUrl: `${siteUrl}/checkout?payment=success`,
-    cancelUrl: `${siteUrl}/checkout?payment=cancelled`,
-    expiredUrl: `${siteUrl}/checkout?payment=expired`,
+    successUrl: `${siteUrl}/checkout?payment=success&return=${token}`,
+    cancelUrl: `${siteUrl}/checkout?payment=cancelled&return=${token}`,
+    expiredUrl: `${siteUrl}/checkout?payment=expired&return=${token}`,
   };
 }
 
@@ -199,6 +204,7 @@ export const commerceRouter = router({
         expiresAt: getSemesterExpiryDate(),
         paymentId: "__pending__",
       });
+      const returnToken = createCheckoutReturnToken(license.id);
 
       try {
         const checkout = await asaasCreateHostedCheckout({
@@ -214,7 +220,7 @@ export const commerceRouter = router({
           externalReference: `${extRef}|${license.id}`,
           description: `${settings.name} - Plano semestral até ${getSemesterExpiryLabel()}`,
           paymentMethod: input.paymentMethod as CheckoutPaymentMethod,
-          callback: getCheckoutCallbacks(ctx.req),
+          callback: getCheckoutCallbacks(ctx.req, returnToken),
         });
         await updateLicense(license.id, { paymentId: checkout.id });
         return {
@@ -244,16 +250,33 @@ export const commerceRouter = router({
 
   /** Consulta somente o estado da licença recém-criada para a tela de retorno do Asaas. */
   checkoutActivationStatus: publicProcedure
-    .input(z.object({ checkoutId: z.string().min(1), licenseId: z.number().int().positive(), email: emailSchema }))
+    .input(z.union([
+      z.object({ returnToken: z.string().min(20) }),
+      z.object({ checkoutId: z.string().min(1), licenseId: z.number().int().positive(), email: emailSchema }),
+    ]))
     .query(async ({ input }) => {
+      if ("returnToken" in input) {
+        const claims = verifyCheckoutReturnToken(input.returnToken);
+        if (!claims) return { found: false, active: false, expiresAt: null, email: null };
+        const license = (await getAllLicenses()).find((item) => item.id === claims.licenseId);
+        if (!license) return { found: false, active: false, expiresAt: null, email: null };
+        return {
+          found: true,
+          active: isLicenseActive(license),
+          expiresAt: license.expiresAt,
+          email: license.email,
+        };
+      }
+
       const licenses = await getLicensesByEmail(input.email);
       const license = licenses.find((item) => matchesCheckoutActivationContext(item, input));
-      if (!license) return { found: false, active: false, expiresAt: null };
+      if (!license) return { found: false, active: false, expiresAt: null, email: null };
 
       return {
         found: true,
         active: isLicenseActive(license),
         expiresAt: license.expiresAt,
+        email: license.email,
       };
     }),
 

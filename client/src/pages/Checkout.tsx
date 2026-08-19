@@ -28,15 +28,19 @@ export default function Checkout() {
   const [province, setProvince] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"PIX" | "CREDIT_CARD">("PIX");
   const [status, setStatus] = useState<Status>("form");
-  const paymentResult = new URLSearchParams(window.location.search).get("payment");
+  const returnSearch = new URLSearchParams(window.location.search);
+  const paymentResult = returnSearch.get("payment");
+  const returnToken = returnSearch.get("return");
   const [checkoutReturn, setCheckoutReturn] = useState<CheckoutReturnContext | null>(() => readCheckoutReturn(window.sessionStorage));
-  const shouldCheckActivation = paymentResult === "success" && Boolean(checkoutReturn);
+  const shouldCheckActivation = paymentResult === "success" && Boolean(returnToken || checkoutReturn);
   const activationStatus = trpc.commerce.checkoutActivationStatus.useQuery(
-    {
-      checkoutId: checkoutReturn?.checkoutId ?? "retorno-pendente",
-      licenseId: checkoutReturn?.licenseId ?? 1,
-      email: checkoutReturn?.email ?? "retorno@siapai.local",
-    },
+    returnToken
+      ? { returnToken }
+      : {
+          checkoutId: checkoutReturn?.checkoutId ?? "retorno-pendente",
+          licenseId: checkoutReturn?.licenseId ?? 1,
+          email: checkoutReturn?.email ?? "retorno@siapai.local",
+        },
     {
       enabled: shouldCheckActivation,
       refetchInterval: (query) => query.state.data?.active ? false : 3_000,
@@ -118,15 +122,15 @@ export default function Checkout() {
                 somente após a confirmação do pagamento.
               </p>
             </div>
-            {paymentResult === "success" && activationStatus.data?.active && checkoutReturn && (
+            {paymentResult === "success" && activationStatus.data?.active && (
               <div role="status" className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground">
                 <div className="flex items-start gap-2">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                  <p><strong>Pagamento confirmado e licença ativa.</strong> O acesso já está liberado para <strong>{checkoutReturn.email}</strong>. Você pode entrar na extensão com este e-mail.</p>
+                  <p><strong>Pagamento confirmado e licença ativa.</strong> O acesso já está liberado para <strong>{activationStatus.data.email ?? checkoutReturn?.email}</strong>. Você pode entrar na extensão com este e-mail.</p>
                 </div>
               </div>
             )}
-            {paymentResult === "success" && (!activationStatus.data?.active || !checkoutReturn) && (
+            {paymentResult === "success" && !activationStatus.data?.active && (
               <div role="status" className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground">
                 <div className="flex items-start gap-2">
                   <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary" />
