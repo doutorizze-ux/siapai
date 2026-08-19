@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { formatBrazilianMobilePhone } from "@/lib/phoneFormat";
 
 type Status = "form" | "loading";
 
@@ -31,8 +32,8 @@ export default function Checkout() {
     const cpfDigits = cpf.replace(/\D/g, "");
     const phoneDigits = phoneNumber.replace(/\D/g, "");
     const postalCodeDigits = postalCode.replace(/\D/g, "");
-    if (!email || !name || cpfDigits.length < 11 || phoneDigits.length < 10 || !address.trim() || !addressNumber.trim() || postalCodeDigits.length !== 8 || !province.trim()) {
-      toast.error("Preencha nome, CPF, telefone e endereço completo para gerar a cobrança segura.");
+    if (!email || !name || cpfDigits.length < 11 || phoneDigits.length !== 11 || !address.trim() || !addressNumber.trim() || postalCodeDigits.length !== 8 || !province.trim()) {
+      toast.error("Informe um celular com DDD, nome, CPF e endereço completo para gerar a cobrança segura.");
       return;
     }
     setStatus("loading");
@@ -131,7 +132,17 @@ export default function Checkout() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="phone">Celular com DDD *</Label>
-                <Input id="phone" type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="(62) 99999-9999" maxLength={16} required />
+                <Input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(formatBrazilianMobilePhone(e.target.value))}
+                  placeholder="(62) 99534-7257"
+                  maxLength={16}
+                  required
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="address">Rua / avenida *</Label>
