@@ -10,6 +10,8 @@ import Validate from "./pages/Validate";
 import Admin from "./pages/Admin";
 import DiagnosticoExtensao from "./pages/DiagnosticoExtensao";
 import Privacy from "./pages/Privacy";
+import { SupportWidget } from "./components/SupportWidget";
+import { ServiceWorkerRegistration } from "./components/ServiceWorkerRegistration";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -43,6 +45,8 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Router />
+          <SupportWidget />
+          <ServiceWorkerRegistration />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

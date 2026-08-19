@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
 import { trpc } from "@/lib/trpc";
+import { SupportInbox } from "@/components/SupportInbox";
 
 function useAdminAccess() {
   const { user, loading, isAuthenticated } = useAuth();
@@ -107,6 +108,7 @@ export default function Admin() {
         </div>
       </header>
       <main className="container py-8 space-y-8 max-w-5xl mx-auto">
+        <SupportInbox />
         <PriceManager />
         <LicenseManager />
       </main>

@@ -1,0 +1,9 @@
+{
+  "name": "SiapAI Suporte",
+  "short_name": "SiapAI",
+  "start_url": "/admin#suporte",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1d4ed8",
+  "description": "Painel móvel de suporte do SiapAI."
+}

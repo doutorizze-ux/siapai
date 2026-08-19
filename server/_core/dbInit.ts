@@ -61,6 +61,41 @@ CREATE TABLE IF NOT EXISTS revisa_progress (
   UNIQUE KEY uq_revisa_progress_activity (licenseId, materialId, componentId, sequenceId, activityId),
   KEY idx_revisa_progress_lookup (licenseId, materialId, componentId, sequenceId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS support_conversations (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  accessTokenHash CHAR(64) NOT NULL UNIQUE,
+  clientName VARCHAR(120) NOT NULL,
+  clientEmail VARCHAR(320) NULL,
+  status ENUM('open', 'answered', 'closed') NOT NULL DEFAULT 'open',
+  adminReadAt TIMESTAMP NULL DEFAULT NULL,
+  lastMessageAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_support_conversations_last_message (lastMessageAt),
+  KEY idx_support_conversations_unread (adminReadAt, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS support_messages (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  conversationId BIGINT NOT NULL,
+  sender ENUM('customer', 'admin') NOT NULL,
+  body TEXT NOT NULL,
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_support_messages_conversation (conversationId, createdAt, id),
+  CONSTRAINT fk_support_messages_conversation FOREIGN KEY (conversationId) REFERENCES support_conversations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS support_push_subscriptions (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  endpointHash CHAR(64) NOT NULL UNIQUE,
+  endpoint TEXT NOT NULL,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  userAgent VARCHAR(1000) NULL,
+  lastSeenAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 `;
 
 const TEST_LICENSE = {
@@ -149,7 +184,7 @@ export async function initializeDatabase(): Promise<void> {
     for (const stmt of statements) {
       await conn.query(stmt);
     }
-    console.log("[dbInit] tabelas users/licenses/product_settings/revisa_progress garantidas.");
+    console.log("[dbInit] tabelas users/licenses/product_settings/revisa_progress/support garantidas.");
 
     const [rows] = await conn.query(
       "SELECT id FROM licenses WHERE code = ?",
