@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { ArrowLeft, CheckCircle2, CreditCard, Loader2, QrCode, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { formatBrazilianMobilePhone } from "@/lib/phoneFormat";
 import { buildCheckoutPayload } from "@/lib/checkoutPayload";
+import { clearCheckoutReturn, readCheckoutReturn, storeCheckoutReturn, type CheckoutReturnContext } from "@/lib/checkoutReturn";
 
 type Status = "form" | "loading";
 
@@ -27,6 +29,24 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState<"PIX" | "CREDIT_CARD">("PIX");
   const [status, setStatus] = useState<Status>("form");
   const paymentResult = new URLSearchParams(window.location.search).get("payment");
+  const [checkoutReturn, setCheckoutReturn] = useState<CheckoutReturnContext | null>(() => readCheckoutReturn(window.sessionStorage));
+  const shouldCheckActivation = paymentResult === "success" && Boolean(checkoutReturn);
+  const activationStatus = trpc.commerce.checkoutActivationStatus.useQuery(
+    {
+      licenseId: checkoutReturn?.licenseId ?? 1,
+      email: checkoutReturn?.email ?? "retorno@siapai.local",
+    },
+    {
+      enabled: shouldCheckActivation,
+      refetchInterval: (query) => query.state.data?.active ? false : 3_000,
+    },
+  );
+
+  useEffect(() => {
+    if (paymentResult !== "cancelled" && paymentResult !== "expired") return;
+    clearCheckoutReturn(window.sessionStorage);
+    setCheckoutReturn(null);
+  }, [paymentResult]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +71,11 @@ export default function Checkout() {
         paymentMethod,
       }));
       if (!result.checkoutUrl) throw new Error("O link de pagamento seguro não foi disponibilizado.");
+      storeCheckoutReturn(window.sessionStorage, {
+        checkoutId: result.checkoutId,
+        licenseId: result.licenseId,
+        email: email.trim().toLowerCase(),
+      });
       toast.info(`Você será direcionado para o pagamento seguro via ${paymentMethod === "PIX" ? "Pix" : "cartão"}.`);
       window.location.assign(result.checkoutUrl);
     } catch (err) {
@@ -92,11 +117,19 @@ export default function Checkout() {
                 somente após a confirmação do pagamento.
               </p>
             </div>
-            {paymentResult === "success" && (
+            {paymentResult === "success" && activationStatus.data?.active && checkoutReturn && (
               <div role="status" className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground">
                 <div className="flex items-start gap-2">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                  <p><strong>Pagamento concluído.</strong> A licença será ativada automaticamente assim que o Asaas confirmar a cobrança.</p>
+                  <p><strong>Pagamento confirmado e licença ativa.</strong> O acesso já está liberado para <strong>{checkoutReturn.email}</strong>. Você pode entrar na extensão com este e-mail.</p>
+                </div>
+              </div>
+            )}
+            {paymentResult === "success" && (!activationStatus.data?.active || !checkoutReturn) && (
+              <div role="status" className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm text-foreground">
+                <div className="flex items-start gap-2">
+                  <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-primary" />
+                  <p><strong>Pagamento concluído.</strong> Estamos confirmando a ativação da licença com o Asaas. Esta página atualiza automaticamente e mostrará o e-mail liberado assim que a confirmação chegar.</p>
                 </div>
               </div>
             )}

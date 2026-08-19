@@ -178,6 +178,7 @@ export const commerceRouter = router({
             return {
               checkoutId: checkout.id,
               checkoutUrl: checkout.link,
+              licenseId: pending.id,
               alreadyExists: true,
             };
           }
@@ -217,6 +218,7 @@ export const commerceRouter = router({
         return {
           checkoutId: checkout.id,
           checkoutUrl: checkout.link,
+          licenseId: license.id,
           alreadyExists: false,
         };
       } catch (error) {
@@ -236,6 +238,21 @@ export const commerceRouter = router({
           message: "Não foi possível criar a cobrança. Tente novamente em instantes.",
         });
       }
+    }),
+
+  /** Consulta somente o estado da licença recém-criada para a tela de retorno do Asaas. */
+  checkoutActivationStatus: publicProcedure
+    .input(z.object({ licenseId: z.number().int().positive(), email: emailSchema }))
+    .query(async ({ input }) => {
+      const licenses = await getLicensesByEmail(input.email);
+      const license = licenses.find((item) => item.id === input.licenseId);
+      if (!license) return { found: false, active: false, expiresAt: null };
+
+      return {
+        found: true,
+        active: isLicenseActive(license),
+        expiresAt: license.expiresAt,
+      };
     }),
 
   /** Consulta o status de um pagamento no Asaas (polling manual) */
