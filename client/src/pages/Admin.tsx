@@ -126,11 +126,13 @@ function PriceManager() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [description, setDescription] = useState("");
 
   const openEdit = () => {
     if (settings) {
       setName(settings.name);
       setPrice(String(settings.priceCents / 100));
+      setDescription(settings.description ?? "");
       setOpen(true);
     }
   };
@@ -140,7 +142,7 @@ function PriceManager() {
     const cents = Math.round(parseFloat(price.replace(",", ".")) * 100);
     if (!name || isNaN(cents) || cents <= 0) return;
     try {
-      await update.mutateAsync({ name, priceCents: cents });
+      await update.mutateAsync({ name, priceCents: cents, description });
       utils.admin.getProductSettings.invalidate();
       refetch();
       setOpen(false);
@@ -176,6 +178,11 @@ function PriceManager() {
                 <Label htmlFor="pprice">Preço (R$)</Label>
                 <Input id="pprice" type="number" step="0.01" min="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pdesc">Descrição do plano</Label>
+                <Textarea id="pdesc" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} maxLength={2000} placeholder="Ex.: Acesso ao SiapAI por semestre, incluindo Planejamento, Frequência, PEI, Correção de Avaliações e Ranking por Blocos." />
+                <p className="text-xs text-muted-foreground">Este texto aparece no preço público e no checkout.</p>
+              </div>
               <Button type="submit" className="w-full" disabled={update.isPending}>
                 {update.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 Salvar
@@ -200,6 +207,10 @@ function PriceManager() {
             <div>
               <p className="text-muted-foreground">Modo de pagamento</p>
               <p className="font-semibold">{settings.asaasMode === "sandbox" ? "Sandbox (teste)" : "Produção"}</p>
+            </div>
+            <div className="sm:col-span-3">
+              <p className="text-muted-foreground">Descrição comercial</p>
+              <p className="mt-1 max-w-3xl whitespace-pre-wrap text-sm leading-relaxed">{settings.description || "Nenhuma descrição cadastrada."}</p>
             </div>
           </div>
         ) : (

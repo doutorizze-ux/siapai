@@ -89,11 +89,15 @@ function getCheckoutCallbacks(
   };
 }
 
+export function getEffectiveProductDescription(description: string | null | undefined) {
+  return description?.trim() || SEMESTER_PLAN_DESCRIPTION;
+}
+
 async function getEffectiveProductSettings() {
   const settings = await getProductSettings();
   return {
     ...settings,
-    description: SEMESTER_PLAN_DESCRIPTION,
+    description: getEffectiveProductDescription(settings.description),
     asaasMode: getConfiguredAsaasMode(),
   };
 }
