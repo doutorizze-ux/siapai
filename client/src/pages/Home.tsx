@@ -60,7 +60,7 @@ const FAQS = [
   },
   {
     q: "Como instalo a extensão?",
-    a: "Instale pelo botão disponível na Chrome Web Store. Depois da confirmação do pagamento, abra o SIAP e informe seu e-mail cadastrado para validar a licença e liberar os módulos."
+    a: "Instale pelo botão disponível na Chrome Web Store. Assim que o pagamento for confirmado, o e-mail informado na compra já fica com a licença ativa. Abra o SIAP e use esse mesmo e-mail na extensão — não é necessário esperar um e-mail de liberação."
   },
   {
     q: "Preciso deixar o computador ligado durante a execução?",
@@ -97,11 +97,6 @@ function Header() {
           <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noreferrer" className="hidden lg:inline-flex">
             <Button variant="outline" size="sm">Instalar extensão ↗</Button>
           </a>
-          <Link href="/validar">
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
-              Validar licença
-            </Button>
-          </Link>
           <a href="#preco">
             <Button size="sm">Quero começar</Button>
           </a>
@@ -145,11 +140,11 @@ function Hero() {
               </Button>
             </a>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">Já tem licença? Instale pela Chrome Web Store e entre no SIAP com seu e-mail cadastrado.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Pagamento confirmado? A licença já fica ativa no e-mail informado na compra. Instale a extensão e entre no SIAP com esse mesmo e-mail.</p>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Validade por semestre</span>
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Sem mensalidade</span>
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Liberação automática via Pix</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Ativação automática após o pagamento</span>
           </div>
         </div>
         <div className="relative animate-in [animation-delay:120ms]">
@@ -268,8 +263,8 @@ function Tutorials() {
 
 function HowItWorks() {
   const steps = [
-    { step: "1", title: "Faça o pagamento via Pix", desc: "Pagamento único com liberação automática. Você recebe seu código de acesso na hora." },
-    { step: "2", title: "Instale pela Chrome Web Store", desc: "Use o botão de instalação, adicione a extensão ao Chrome e ative-a com o seu e-mail de licença." },
+    { step: "1", title: "Faça o pagamento", desc: "Escolha Pix ou cartão. Quando o pagamento for confirmado, o e-mail informado na compra recebe a licença automaticamente." },
+    { step: "2", title: "Instale pela Chrome Web Store", desc: "Use o botão de instalação e adicione a extensão ao Chrome. Não é necessário aguardar um e-mail ou código de liberação." },
     { step: "3", title: "Abra o SIAP e clique em executar", desc: "O painel lateral aparece no próprio SIAP. Escolha a tarefa, selecione turmas e meses e deixe o robô trabalhar." },
   ];
   return (
@@ -334,7 +329,7 @@ function Pricing() {
         <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">Um pagamento único, sem mensalidade</h2>
           <p className="mt-3 text-muted-foreground">
-            Pague uma vez e use até o fim do semestre-calendário. Liberação automática após a confirmação do Pix.
+            Pague uma vez e use até o fim do semestre-calendário. A licença é ativada automaticamente no e-mail informado na compra após a confirmação do pagamento.
           </p>
         </div>
         <div className="rounded-3xl border bg-card shadow-lg overflow-hidden">
@@ -357,7 +352,7 @@ function Pricing() {
               "PEI completo gerado por IA",
               "Correção de avaliações com prévia auditável",
               "Reclique automático contra instabilidade do SIAP",
-              "Ativação pelo seu e-mail de cadastro",
+              "Ativação automática no e-mail informado na compra",
             ].map((item) => (
               <li key={item} className="flex items-start gap-2.5 text-sm">
                 <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
@@ -368,11 +363,11 @@ function Pricing() {
           <div className="px-6 pb-6">
             <Link href="/checkout">
               <Button size="lg" className="w-full text-base">
-                Comprar agora — Pix QR Code
+                Comprar agora — Pix ou cartão
               </Button>
             </Link>
             <p className="mt-3 text-xs text-center text-muted-foreground">
-              Liberação automática em até 2 minutos após a confirmação do pagamento.
+              Após a confirmação do pagamento, sua licença fica ativa automaticamente no e-mail usado na compra. Não é necessário validar licença nem esperar um e-mail.
             </p>
           </div>
         </div>
@@ -413,7 +408,6 @@ function Footer() {
         <div className="flex items-center gap-5">
           <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noreferrer">Instalar extensão</a>
           <a href="#tutoriais">Tutoriais</a>
-          <Link href="/validar">Validar licença</Link>
           <Link href="/checkout">Comprar</Link>
           <span>© {new Date().getFullYear()} SiapAI</span>
         </div>

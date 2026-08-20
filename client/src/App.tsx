@@ -1,12 +1,11 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Checkout from "./pages/Checkout";
-import Validate from "./pages/Validate";
 import Admin from "./pages/Admin";
 import DiagnosticoExtensao from "./pages/DiagnosticoExtensao";
 import Privacy from "./pages/Privacy";
@@ -19,7 +18,7 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/checkout"} component={Checkout} />
-      <Route path={"/validar"} component={Validate} />
+      <Route path={"/validar"}><Redirect to="/" /></Route>
       <Route path={"/admin"} component={Admin} />
       <Route path={"/diagnostico-extensao"} component={DiagnosticoExtensao} />
       <Route path={"/privacy"} component={Privacy} />
