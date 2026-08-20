@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { CheckCircle2, Loader2, Rocket, CalendarCheck, BookOpenCheck, Copy, Star, Award, ShieldCheck, FileCheck2, ScanLine, ListChecks, MousePointerClick } from "lucide-react";
+import { CheckCircle2, Loader2, Rocket, CalendarCheck, BookOpenCheck, Copy, Star, Award, ShieldCheck, FileCheck2, ScanLine, ListChecks, MousePointerClick, ClipboardCheck, Trophy, FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
@@ -44,6 +44,15 @@ const FEATURES = [
   },
 ];
 
+const MODULE_SHOWCASE = [
+  { icon: Sparkles, label: "PLANEJAMENTO E REVISA", title: "Planeje aulas com apoio da IA SiapAI", desc: "Defina a quantidade de aulas, informe o conteúdo ou envie um roteiro. O painel reúne opções para gerar planejamentos e aplicar as próximas aulas no SIAP.", image: "/images/siapai-modulos/planejamento-revisa.png", alt: "Tela do módulo de planejamento com Revisa do SiapAI" },
+  { icon: ClipboardCheck, label: "CORREÇÃO DE AVALIAÇÕES", title: "Leia o gabarito e monte uma prévia segura", desc: "Envie o gabarito e as folhas numeradas para organizar a prévia da turma antes de preencher a grade no SIAP.", image: "/images/siapai-modulos/correcao-avaliacoes.png", alt: "Tela do módulo de correção de avaliações do SiapAI" },
+  { icon: CalendarCheck, label: "FREQUÊNCIA AUTOMÁTICA", title: "Escolha os meses e acompanhe a execução", desc: "Marque somente os períodos que deseja executar, acompanhe o status e mantenha o controle do que já foi concluído.", image: "/images/siapai-modulos/frequencia-automatica.png", alt: "Tela do módulo de frequência automática do SiapAI" },
+  { icon: FileText, label: "CONTEÚDO PROGRAMÁTICO", title: "Organize conteúdos e materiais de apoio", desc: "Selecione os meses, escolha os materiais utilizados e execute o lançamento do conteúdo programático no seu ritmo.", image: "/images/siapai-modulos/conteudo-programatico.png", alt: "Tela do módulo de conteúdo programático do SiapAI" },
+  { icon: ShieldCheck, label: "PEI COM IA", title: "Gere o PEI a partir do contexto pedagógico", desc: "Confira os dados identificados, inclua orientações quando quiser e gere uma proposta de Plano Educacional Individualizado no painel.", image: "/images/siapai-modulos/pei-com-ia.png", alt: "Tela do módulo PEI com IA do SiapAI" },
+  { icon: Trophy, label: "RANKING POR BLOCOS", title: "Consolide os resultados por disciplina", desc: "Selecione a modalidade de avaliação, capture os relatórios das disciplinas e monte um ranking bimestral organizado.", image: "/images/siapai-modulos/ranking-blocos.png", alt: "Tela do módulo Ranking por Blocos do SiapAI" },
+];
+
 const FAQS = [
   {
     q: "O acesso é vitalício?",
@@ -77,6 +86,7 @@ function Header() {
         </a>
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
           <a href="#funcionalidades">Funcionalidades</a>
+          <a href="#modulos">Módulos</a>
           <a href="#como-funciona">Como funciona</a>
           <a href="#correcao-avaliacoes">Correção de avaliações</a>
           <a href="#preco">Preço</a>
@@ -179,6 +189,37 @@ function Features() {
         </div>
         <div className="mt-14 rounded-2xl overflow-hidden border shadow-lg">
           <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663876770025/HHXsTRYnORWweGea.webp" alt="Funcionalidades do SiapAI" className="w-full" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ModuleShowcase() {
+  return (
+    <section id="modulos" className="scroll-mt-14 border-y bg-gradient-to-b from-primary/5 via-background to-background py-16 md:py-24">
+      <div className="container">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"><Sparkles className="h-3.5 w-3.5" /> Conheça os módulos na prática</span>
+          <h2 className="mt-4 text-3xl font-extrabold tracking-tight md:text-4xl">Tudo o que você precisa para trabalhar no SIAP, em um só painel</h2>
+          <p className="mt-3 text-lg text-muted-foreground">Veja telas reais da extensão SiapAI e entenda como cada módulo apoia sua rotina pedagógica.</p>
+        </div>
+        <div className="mt-12 grid gap-7 md:grid-cols-2 lg:grid-cols-3">
+          {MODULE_SHOWCASE.map((module, index) => {
+            const Icon = module.icon;
+            return (
+              <article key={module.title} className="group overflow-hidden rounded-3xl border bg-card shadow-sm transition-shadow hover:shadow-lg">
+                <div className="relative flex min-h-[290px] items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 to-secondary p-5">
+                  <img src={module.image} alt={module.alt} className="max-h-[430px] w-auto max-w-full rounded-2xl border border-primary/10 shadow-xl transition-transform duration-300 group-hover:scale-[1.02]" loading={index > 1 ? "lazy" : "eager"} />
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-primary"><Icon className="h-4 w-4" /> {module.label}</div>
+                  <h3 className="mt-3 text-xl font-extrabold tracking-tight">{module.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{module.desc}</p>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -351,6 +392,7 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <Features />
+        <ModuleShowcase />
         <HowItWorks />
         <GradeCorrection />
         <Pricing />
