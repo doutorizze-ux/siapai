@@ -55,3 +55,19 @@ export const productSettings = mysqlTable("product_settings", {
 });
 
 export type ProductSettings = typeof productSettings.$inferSelect;
+
+/** Vídeos tutoriais cadastrados pelo administrador e exibidos na página pública. */
+export const tutorials = mysqlTable("tutorials", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 180 }).notNull(),
+  description: text("description"),
+  youtubeUrl: varchar("youtubeUrl", { length: 512 }).notNull(),
+  youtubeVideoId: varchar("youtubeVideoId", { length: 32 }).notNull(),
+  displayOrder: int("displayOrder").default(0).notNull(),
+  isPublished: tinyint("isPublished").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Tutorial = typeof tutorials.$inferSelect;
+export type InsertTutorial = typeof tutorials.$inferInsert;

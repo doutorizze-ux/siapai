@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Copy, Edit2, Loader2, Plus, RefreshCw, ShieldCheck, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Edit2, Eye, EyeOff, Loader2, Plus, RefreshCw, ShieldCheck, Trash2, ToggleLeft, ToggleRight, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
@@ -110,6 +111,7 @@ export default function Admin() {
       <main className="container py-8 space-y-8 max-w-5xl mx-auto">
         <SupportInbox />
         <PriceManager />
+        <TutorialManager />
         <LicenseManager />
       </main>
     </div>
@@ -347,6 +349,123 @@ function LicenseManager() {
             </Table>
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TutorialManager() {
+  const { data: tutorials, refetch } = trpc.admin.listTutorials.useQuery();
+  const create = trpc.admin.createTutorial.useMutation();
+  const update = trpc.admin.updateTutorial.useMutation();
+  const remove = trpc.admin.deleteTutorial.useMutation();
+  const utils = trpc.useUtils();
+
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [displayOrder, setDisplayOrder] = useState("0");
+  const [isPublished, setIsPublished] = useState(true);
+
+  const invalidate = async () => {
+    await utils.admin.listTutorials.invalidate();
+    await utils.commerce.tutorials.invalidate();
+    await refetch();
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    setTitle("");
+    setDescription("");
+    setYoutubeUrl("");
+    setDisplayOrder(String(tutorials?.length ?? 0));
+    setIsPublished(true);
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setOpen(true);
+  };
+
+  const openEdit = (tutorial: NonNullable<typeof tutorials>[number]) => {
+    setEditingId(tutorial.id);
+    setTitle(tutorial.title);
+    setDescription(tutorial.description ?? "");
+    setYoutubeUrl(tutorial.youtubeUrl);
+    setDisplayOrder(String(tutorial.displayOrder));
+    setIsPublished(tutorial.isPublished === 1);
+    setOpen(true);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const payload = { title, description: description || undefined, youtubeUrl, displayOrder: Math.max(0, parseInt(displayOrder, 10) || 0), isPublished: isPublished ? 1 : 0 } as const;
+    try {
+      if (editingId) {
+        await update.mutateAsync({ id: editingId, ...payload });
+        toast.success("Tutorial atualizado.");
+      } else {
+        await create.mutateAsync(payload);
+        toast.success("Tutorial adicionado ao painel.");
+      }
+      await invalidate();
+      setOpen(false);
+      resetForm();
+    } catch (error) {
+      toast.error((error as Error).message || "Não foi possível salvar o tutorial.");
+    }
+  };
+
+  const togglePublication = async (tutorial: NonNullable<typeof tutorials>[number]) => {
+    try {
+      await update.mutateAsync({ id: tutorial.id, isPublished: tutorial.isPublished ? 0 : 1 });
+      await invalidate();
+      toast.success(tutorial.isPublished ? "Tutorial ocultado do site." : "Tutorial publicado no site.");
+    } catch (error) {
+      toast.error((error as Error).message || "Não foi possível alterar a publicação.");
+    }
+  };
+
+  const moveTutorial = async (tutorial: NonNullable<typeof tutorials>[number], direction: -1 | 1) => {
+    const position = tutorials?.findIndex((item) => item.id === tutorial.id) ?? -1;
+    const other = tutorials?.[position + direction];
+    if (!other) return;
+    try {
+      await update.mutateAsync({ id: tutorial.id, displayOrder: other.displayOrder });
+      await update.mutateAsync({ id: other.id, displayOrder: tutorial.displayOrder });
+      await invalidate();
+    } catch (error) {
+      toast.error((error as Error).message || "Não foi possível alterar a ordem.");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle className="flex items-center gap-2"><Video className="h-5 w-5 text-primary" /> Tutoriais em vídeo</CardTitle>
+          <CardDescription>Cadastre links do YouTube para exibi-los automaticamente na página pública do SiapAI.</CardDescription>
+        </div>
+        <Dialog open={open} onOpenChange={(nextOpen) => { setOpen(nextOpen); if (!nextOpen) resetForm(); }}>
+          <Button size="sm" className="gap-1.5 shrink-0" onClick={openCreate}>
+            <Plus className="h-3.5 w-3.5" /> Novo vídeo
+          </Button>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader><DialogTitle>{editingId ? "Editar tutorial" : "Adicionar tutorial"}</DialogTitle></DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5"><Label htmlFor="tutorial-title">Título</Label><Input id="tutorial-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex.: Como instalar a extensão" required maxLength={180} /></div>
+              <div className="space-y-1.5"><Label htmlFor="tutorial-url">Link do vídeo no YouTube</Label><Input id="tutorial-url" type="url" value={youtubeUrl} onChange={(event) => setYoutubeUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." required /><p className="text-xs text-muted-foreground">Aceita links padrão, curtos (youtu.be), Shorts e embeds do YouTube.</p></div>
+              <div className="space-y-1.5"><Label htmlFor="tutorial-description">Descrição curta</Label><Textarea id="tutorial-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Explique o que o professor aprenderá neste vídeo." rows={3} maxLength={1200} /></div>
+              <div className="grid grid-cols-2 gap-4"><div className="space-y-1.5"><Label htmlFor="tutorial-order">Ordem</Label><Input id="tutorial-order" type="number" min="0" value={displayOrder} onChange={(event) => setDisplayOrder(event.target.value)} required /></div><label className="flex cursor-pointer items-center gap-2 pt-6 text-sm font-medium"><input type="checkbox" checked={isPublished} onChange={(event) => setIsPublished(event.target.checked)} className="h-4 w-4 accent-primary" />Publicar agora</label></div>
+              <Button type="submit" className="w-full" disabled={create.isPending || update.isPending}>{(create.isPending || update.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}{editingId ? "Salvar alterações" : "Adicionar vídeo"}</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        {!tutorials ? <p className="py-6 text-center text-sm text-muted-foreground">Carregando tutoriais...</p> : tutorials.length === 0 ? <div className="rounded-2xl border border-dashed p-7 text-center"><Video className="mx-auto h-7 w-7 text-primary/70" /><p className="mt-3 font-semibold">Nenhum tutorial cadastrado ainda.</p><p className="mt-1 text-sm text-muted-foreground">Adicione os vídeos já publicados no YouTube. Você poderá editar, ocultar ou reorganizar quando quiser.</p></div> : <div className="space-y-3">{tutorials.map((tutorial, index) => <article key={tutorial.id} className="flex flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:items-center"><img src={`https://i.ytimg.com/vi/${tutorial.youtubeVideoId}/hqdefault.jpg`} alt="" className="aspect-video w-full rounded-xl bg-secondary object-cover sm:w-40" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold">{tutorial.title}</h3><Badge variant={tutorial.isPublished ? "default" : "secondary"}>{tutorial.isPublished ? "Publicado" : "Oculto"}</Badge></div>{tutorial.description && <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{tutorial.description}</p>}<p className="mt-2 truncate text-xs text-muted-foreground">Ordem {tutorial.displayOrder} · {tutorial.youtubeUrl}</p></div><div className="flex flex-wrap items-center gap-1 sm:justify-end"><Button variant="ghost" size="icon" title="Mover para cima" aria-label="Mover para cima" onClick={() => moveTutorial(tutorial, -1)} disabled={index === 0 || update.isPending}><ArrowUp className="h-4 w-4" /></Button><Button variant="ghost" size="icon" title="Mover para baixo" aria-label="Mover para baixo" onClick={() => moveTutorial(tutorial, 1)} disabled={index === tutorials.length - 1 || update.isPending}><ArrowDown className="h-4 w-4" /></Button><Button variant="ghost" size="icon" title={tutorial.isPublished ? "Ocultar" : "Publicar"} aria-label={tutorial.isPublished ? "Ocultar" : "Publicar"} onClick={() => togglePublication(tutorial)} disabled={update.isPending}>{tutorial.isPublished ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button><Button variant="ghost" size="icon" title="Editar" aria-label="Editar" onClick={() => openEdit(tutorial)}><Edit2 className="h-4 w-4" /></Button><Button variant="ghost" size="icon" title="Excluir" aria-label="Excluir" onClick={async () => { if (!confirm(`Excluir o tutorial “${tutorial.title}”?`)) return; try { await remove.mutateAsync({ id: tutorial.id }); await invalidate(); toast.success("Tutorial excluído."); } catch (error) { toast.error((error as Error).message || "Não foi possível excluir o tutorial."); } }} disabled={remove.isPending}><Trash2 className="h-4 w-4 text-destructive" /></Button></div></article>)}</div>}
       </CardContent>
     </Card>
   );

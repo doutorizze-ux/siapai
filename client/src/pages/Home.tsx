@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { CheckCircle2, Loader2, Rocket, CalendarCheck, BookOpenCheck, Copy, Star, Award, ShieldCheck, FileCheck2, ScanLine, ListChecks, MousePointerClick, ClipboardCheck, Trophy, FileText, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2, Rocket, CalendarCheck, BookOpenCheck, Copy, Star, Award, ShieldCheck, FileCheck2, ScanLine, ListChecks, MousePointerClick, ClipboardCheck, Trophy, FileText, Sparkles, PlayCircle, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
@@ -87,6 +87,7 @@ function Header() {
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
           <a href="#funcionalidades">Funcionalidades</a>
           <a href="#modulos">Módulos</a>
+          <a href="#tutoriais">Tutoriais</a>
           <a href="#como-funciona">Como funciona</a>
           <a href="#correcao-avaliacoes">Correção de avaliações</a>
           <a href="#preco">Preço</a>
@@ -221,6 +222,45 @@ function ModuleShowcase() {
             );
           })}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function Tutorials() {
+  const { data: tutorials, isLoading } = trpc.commerce.tutorials.useQuery();
+
+  if (!isLoading && (!tutorials || tutorials.length === 0)) return null;
+
+  return (
+    <section id="tutoriais" className="scroll-mt-14 bg-secondary/45 py-16 md:py-24">
+      <div className="container">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background px-3 py-1 text-xs font-bold tracking-wide text-primary"><Video className="h-3.5 w-3.5" /> APRENDA PASSO A PASSO</span>
+          <h2 className="mt-4 text-3xl font-extrabold tracking-tight md:text-4xl">Tutoriais para usar o SiapAI com segurança</h2>
+          <p className="mt-4 text-lg leading-relaxed text-muted-foreground">Assista aos vídeos e acompanhe cada etapa antes de executar no SIAP.</p>
+        </div>
+        {isLoading ? (
+          <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((item) => <div key={item} className="overflow-hidden rounded-3xl border bg-card p-4"><div className="aspect-video animate-pulse rounded-2xl bg-muted" /><div className="mt-5 h-5 w-3/4 animate-pulse rounded bg-muted" /><div className="mt-3 h-4 w-full animate-pulse rounded bg-muted" /></div>)}
+          </div>
+        ) : (
+          <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {tutorials?.map((tutorial) => (
+              <article key={tutorial.id} className="overflow-hidden rounded-3xl border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+                <div className="relative aspect-video bg-black">
+                  <iframe className="absolute inset-0 h-full w-full" src={`https://www.youtube-nocookie.com/embed/${tutorial.youtubeVideoId}`} title={tutorial.title} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center gap-2 text-sm font-bold text-primary"><PlayCircle className="h-4 w-4" /> Tutorial SiapAI</div>
+                  <h3 className="mt-3 text-xl font-extrabold tracking-tight">{tutorial.title}</h3>
+                  {tutorial.description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{tutorial.description}</p>}
+                  <a href={tutorial.youtubeUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:underline">Assistir no YouTube ↗</a>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -372,6 +412,7 @@ function Footer() {
         </span>
         <div className="flex items-center gap-5">
           <a href={CHROME_WEB_STORE_URL} target="_blank" rel="noreferrer">Instalar extensão</a>
+          <a href="#tutoriais">Tutoriais</a>
           <Link href="/validar">Validar licença</Link>
           <Link href="/checkout">Comprar</Link>
           <span>© {new Date().getFullYear()} SiapAI</span>
@@ -393,6 +434,7 @@ export default function Home() {
         <Hero />
         <Features />
         <ModuleShowcase />
+        <Tutorials />
         <HowItWorks />
         <GradeCorrection />
         <Pricing />

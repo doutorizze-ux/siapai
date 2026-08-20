@@ -1,6 +1,6 @@
 /**
  * Inicialização do schema do SiapAI no boot do servidor.
- * Cria as tabelas `users`, `licenses` e `product_settings` (CREATE TABLE IF NOT EXISTS)
+ * Cria as tabelas `users`, `licenses`, `product_settings` e `tutorials` (CREATE TABLE IF NOT EXISTS)
  * e garante a licença de teste para 02376222117@siapai.com.br.
  * Executado antes do servidor começar a escutar, com retry em caso de o MySQL
  * ainda não estar pronto (cold start em compose).
@@ -45,6 +45,18 @@ CREATE TABLE IF NOT EXISTS product_settings (
   description VARCHAR(1000) NULL,
   expiryDate DATE NOT NULL,
   asaasMode VARCHAR(32) NOT NULL DEFAULT 'sandbox',
+  createdAt TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS tutorials (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(180) NOT NULL,
+  description TEXT NULL,
+  youtubeUrl VARCHAR(512) NOT NULL,
+  youtubeVideoId VARCHAR(32) NOT NULL,
+  displayOrder INT NOT NULL DEFAULT 0,
+  isPublished TINYINT(1) NOT NULL DEFAULT 1,
   createdAt TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

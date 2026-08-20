@@ -15,6 +15,7 @@ import {
   updateLicense,
   updateProductSettings,
 } from "../db.licenses";
+import { createTutorial, deleteTutorial, getAllTutorials, getNextTutorialOrder, getPublishedTutorials, updateTutorial } from "../db.tutorials";
 import { getSemesterExpiryDate, getSemesterExpiryLabel, SEMESTER_PLAN_DESCRIPTION } from "../licensePeriod";
 import { normalizeSiapPaymentMethod, shouldActivateLicenseForPaymentEvent, shouldDeactivateLicenseForPaymentEvent } from "../paymentLifecycle";
 import { matchesCheckoutActivationContext } from "../checkoutActivation";
@@ -22,6 +23,30 @@ import { findPendingLicenseForAsaasPayment } from "../asaasWebhookPaymentMatch";
 import { createCheckoutReturnToken, verifyCheckoutReturnToken } from "../checkoutReturnToken";
 
 const emailSchema = z.string().email("E-mail inválido").trim().toLowerCase();
+
+export function getYouTubeVideoId(rawUrl: string): string | null {
+  try {
+    const url = new URL(rawUrl.trim());
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    let videoId = "";
+    if (host === "youtu.be") videoId = url.pathname.split("/").filter(Boolean)[0] ?? "";
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname === "/watch") videoId = url.searchParams.get("v") ?? "";
+      if (url.pathname.startsWith("/embed/") || url.pathname.startsWith("/shorts/") || url.pathname.startsWith("/live/")) videoId = url.pathname.split("/").filter(Boolean)[1] ?? "";
+    }
+    return /^[A-Za-z0-9_-]{6,32}$/.test(videoId) ? videoId : null;
+  } catch {
+    return null;
+  }
+}
+
+const tutorialInputSchema = z.object({
+  title: z.string().trim().min(3, "Informe um título com pelo menos 3 caracteres.").max(180),
+  description: z.string().trim().max(1200).optional(),
+  youtubeUrl: z.string().trim().url("Informe um link válido do YouTube.").max(512).refine((value) => !!getYouTubeVideoId(value), "Use um link de vídeo válido do YouTube."),
+  displayOrder: z.number().int().min(0).max(9999).optional(),
+  isPublished: z.number().int().min(0).max(1).optional(),
+});
 const phoneNumberSchema = z.string().trim()
   .refine((value) => {
     const digits = value.replace(/\D/g, "");
@@ -76,6 +101,9 @@ async function getEffectiveProductSettings() {
 export const commerceRouter = router({
   /** Preço e configurações públicas do produto */
   productInfo: publicProcedure.query(() => getEffectiveProductSettings()),
+
+  /** Tutoriais publicados na página inicial. */
+  tutorials: publicProcedure.query(() => getPublishedTutorials()),
 
   /** Valida licença por e-mail + código (usado no site e pela extensão) */
   validateLicense: publicProcedure
@@ -443,4 +471,33 @@ export const adminRouter = router({
         priceDisplay: `${settings.currency === "BRL" ? "R$" : ""} ${formatCentsToBRL(settings.priceCents)}`,
       };
     }),
+
+  listTutorials: adminProcedure.query(() => getAllTutorials()),
+
+  createTutorial: adminProcedure.input(tutorialInputSchema).mutation(async ({ input }) => {
+    const displayOrder = input.displayOrder ?? await getNextTutorialOrder();
+    return createTutorial({
+      ...input,
+      description: input.description || null,
+      youtubeVideoId: getYouTubeVideoId(input.youtubeUrl)!,
+      displayOrder,
+      isPublished: input.isPublished ?? 1,
+    });
+  }),
+
+  updateTutorial: adminProcedure.input(tutorialInputSchema.partial().extend({ id: z.number().int().positive() })).mutation(async ({ input }) => {
+    const { id, youtubeUrl, description, ...rest } = input;
+    if (youtubeUrl && !getYouTubeVideoId(youtubeUrl)) throw new TRPCError({ code: "BAD_REQUEST", message: "Use um link de vídeo válido do YouTube." });
+    await updateTutorial(id, {
+      ...rest,
+      ...(description !== undefined ? { description: description || null } : {}),
+      ...(youtubeUrl ? { youtubeUrl, youtubeVideoId: getYouTubeVideoId(youtubeUrl)! } : {}),
+    });
+    return { success: true };
+  }),
+
+  deleteTutorial: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ input }) => {
+    await deleteTutorial(input.id);
+    return { success: true };
+  }),
 });
