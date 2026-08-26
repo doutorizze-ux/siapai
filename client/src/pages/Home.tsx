@@ -81,7 +81,7 @@ function Header() {
     <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur">
       <div className="container flex h-14 items-center justify-between">
         <a href="#" className="flex items-center gap-2 font-extrabold text-lg tracking-tight text-primary">
-          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663876770025/prWiYtCFZbRhSEqO.webp" alt="SiapAI" className="h-8 w-8 rounded-lg" />
+          <img src="/images/siapai-logo.svg" alt="SiapAI" className="h-8 w-8 rounded-lg" />
           SiapAI
         </a>
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
@@ -149,9 +149,9 @@ function Hero() {
         </div>
         <div className="relative animate-in [animation-delay:120ms]">
           <img
-            src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663876770025/WhDZasVBwXINZLDH.webp"
-            alt="Painel SiapAI no SIAP"
-            className="rounded-2xl border shadow-xl w-full"
+            src="/images/siapai-modulos/planejamento-revisa.png"
+            alt="Painel de planejamento com Revisa do SiapAI"
+            className="mx-auto max-h-[560px] w-auto max-w-full rounded-2xl border shadow-xl"
           />
         </div>
       </div>
@@ -184,7 +184,7 @@ function Features() {
           ))}
         </div>
         <div className="mt-14 rounded-2xl overflow-hidden border shadow-lg">
-          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663876770025/HHXsTRYnORWweGea.webp" alt="Funcionalidades do SiapAI" className="w-full" />
+          <img src="/images/siapai-modulos/frequencia-automatica.png" alt="Tela do módulo de frequência automática do SiapAI" className="mx-auto max-h-[560px] w-auto max-w-full" />
         </div>
       </div>
     </section>
@@ -402,7 +402,7 @@ function Footer() {
     <footer className="border-t py-8">
       <div className="container flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
         <span className="inline-flex items-center gap-2 font-semibold text-foreground">
-          <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663876770025/prWiYtCFZbRhSEqO.webp" alt="" className="h-6 w-6 rounded" />
+          <img src="/images/siapai-logo.svg" alt="" className="h-6 w-6 rounded" />
           SiapAI
         </span>
         <div className="flex items-center gap-5">
