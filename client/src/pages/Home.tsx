@@ -149,9 +149,9 @@ function Hero() {
         </div>
         <div className="relative animate-in [animation-delay:120ms]">
           <img
-            src="/images/siapai-modulos/planejamento-revisa.png"
-            alt="Painel de planejamento com Revisa do SiapAI"
-            className="mx-auto max-h-[560px] w-auto max-w-full rounded-2xl border shadow-xl"
+            src="/images/siapai-painel-planejamento.png"
+            alt="Painel SiapAI no SIAP"
+            className="w-full rounded-2xl border shadow-xl"
           />
         </div>
       </div>
@@ -182,9 +182,6 @@ function Features() {
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
             </div>
           ))}
-        </div>
-        <div className="mt-14 rounded-2xl overflow-hidden border shadow-lg">
-          <img src="/images/siapai-modulos/frequencia-automatica.png" alt="Tela do módulo de frequência automática do SiapAI" className="mx-auto max-h-[560px] w-auto max-w-full" />
         </div>
       </div>
     </section>
